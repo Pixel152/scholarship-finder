@@ -224,7 +224,7 @@ Then rank top-10 by ease of win:
    Status:      [OPEN — deadline DATE] or [CLOSED — reopens ~MONTH] or [UPCOMING]
    Eligibility: [key requirements — confirmed from extracted page]
    Awards/yr:   [number] — [what this means for competition]
-   Apply:       [URL] | [contact name + email if found]
+   Apply:       [bare URL only — the exact URL you extracted, no extra text] | [contact email if found]
    Effort:      [e.g. "short form, no essay" or "2 essays + 1 rec letter"]
    Past winners:[brief note if found, e.g. "CS students from NYC, avg 3.6 GPA"]
    Match:       [why this student specifically qualifies — cite the profile field that unlocks it]
@@ -243,17 +243,17 @@ def _handle_tool(name: str, tool_input: dict, nimble_key: str) -> str:
         if not results:
             return "No results found."
         lines = []
-        for r in results[:8]:
+        for r in results[:5]:
             lines.append(
                 f"Title: {r.get('title', '')}\n"
                 f"URL: {r.get('url', '')}\n"
-                f"Snippet: {r.get('description', '')[:300]}"
+                f"Snippet: {r.get('description', '')[:200]}"
             )
         return "\n\n---\n\n".join(lines)
 
     if name == "nimble_extract":
         content = nimble_extract(tool_input["url"], nimble_key)
-        return content[:8000] if content else "Could not extract content from this URL."
+        return content[:5000] if content else "Could not extract content from this URL."
 
     return "Unknown tool."
 
@@ -268,10 +268,16 @@ def run_agent(profile: StudentProfile, nimble_key: str, anthropic_key: str, even
     ]
 
     while True:
+        last = messages[-1] if messages else {}
+        in_tool_loop = (
+            isinstance(last.get("content"), list) and
+            any(b.get("type") == "tool_result" for b in last["content"]
+                if isinstance(b, dict))
+        )
         response = client.messages.create(
             model=MODEL,
-            max_tokens=8096,
-            system=build_system_prompt(),
+            max_tokens=4096 if in_tool_loop else 8096,
+            system=[{"type": "text", "text": build_system_prompt(), "cache_control": {"type": "ephemeral"}}],
             tools=TOOLS,
             messages=messages,
         )

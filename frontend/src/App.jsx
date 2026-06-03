@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import LandingHero from './components/LandingHero'
 import ProfileView from './components/ProfileView'
 import MultiStepForm from './components/MultiStepForm'
 import SearchProgress from './components/SearchProgress'
 import Results from './components/Results'
-import AuthModal from './components/AuthModal'
+import AuthPage from './components/AuthPage'
 import { MOCK_PROFILE, MOCK_OUTPUT, MOCK_DATE, MOCK_COUNT } from './data/mockData'
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
@@ -36,17 +36,24 @@ const apiBase = import.meta.env.VITE_API_URL || ''
 
 async function cloudSaveProfile(token, profile) {
   try {
-    await fetch(`${apiBase}/api/auth/profile`, {
+    const res = await fetch(`${apiBase}/api/auth/profile`, {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body:    JSON.stringify({ profile }),
     })
-  } catch {}
+    return res.status
+  } catch {
+    return null
+  }
 }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [view,       setView]       = useState(() => ls.get(K.profile) ? 'profile' : 'landing')
+  const [view,       setView]       = useState(() => {
+    const token = localStorage.getItem(K.token)
+    const savedProfile = ls.get(K.profile)
+    return token && savedProfile ? 'profile' : 'landing'
+  })
   const [profile,    setProfile]    = useState(() => ls.get(K.profile))
   const [lastSearch, setLastSearch] = useState(loadLastSearch)
   const [events,     setEvents]     = useState([])
@@ -56,14 +63,26 @@ export default function App() {
     const email = localStorage.getItem(K.email)
     return token && email ? { token, email } : null
   })
-  const [showAuth,   setShowAuth]   = useState(false)
   const eventsRef = useRef([])
 
+  useEffect(() => {
+    const id = setInterval(() => setEvents([...eventsRef.current]), 500)
+    return () => clearInterval(id)
+  }, [])
+
   // ── persist profile ──────────────────────────────────────────────────────
-  const persistProfile = (data) => {
+  const persistProfile = async (data) => {
     setProfile(data)
     ls.set(K.profile, data)
-    if (user) cloudSaveProfile(user.token, data)
+    if (user) {
+      const status = await cloudSaveProfile(user.token, data)
+      if (status === 401) {
+        setUser(null)
+        ls.remove(K.token)
+        ls.remove(K.email)
+        setView('auth')
+      }
+    }
   }
 
   // ── persist search results ───────────────────────────────────────────────
@@ -80,22 +99,23 @@ export default function App() {
     setUser({ token, email })
     ls.set(K.token, token)
     ls.set(K.email, email)
-    // If user has a cloud profile and no local one, load it
-    if (cloudProfile && !ls.get(K.profile)) {
+    if (cloudProfile) {
       setProfile(cloudProfile)
       ls.set(K.profile, cloudProfile)
       setView('profile')
     } else if (profile) {
-      // Sync current local profile up to cloud
-      cloudSaveProfile(token, profile)
+      cloudSaveProfile(token, profile) // best-effort, token just issued so won't be 401
+      setView('profile')
+    } else {
+      setView('setup')
     }
-    setShowAuth(false)
   }
 
   const handleLogout = () => {
     setUser(null)
     ls.remove(K.token)
     ls.remove(K.email)
+    setView('landing')
   }
 
   // ── demo mode ────────────────────────────────────────────────────────────
@@ -114,7 +134,6 @@ export default function App() {
   // ── streaming search ─────────────────────────────────────────────────────
   const runSearch = async (profileData) => {
     eventsRef.current = []
-    setEvents([])
     setOutput('')
     setView('searching')
 
@@ -133,7 +152,10 @@ export default function App() {
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done) {
+          buf += decoder.decode()
+          break
+        }
         buf += decoder.decode(value, { stream: true })
         const parts = buf.split('\n\n')
         buf = parts.pop()
@@ -152,7 +174,6 @@ export default function App() {
             if (ev.type === 'text') fullText += ev.content + '\n\n'
             if (['search', 'extract', 'text', 'error'].includes(ev.type)) {
               eventsRef.current = [...eventsRef.current, ev]
-              setEvents([...eventsRef.current])
             }
           } catch {}
         }
@@ -165,7 +186,6 @@ export default function App() {
       }
     } catch (err) {
       eventsRef.current = [...eventsRef.current, { type: 'error', message: err.message }]
-      setEvents([...eventsRef.current])
     }
   }
 
@@ -175,10 +195,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50">
       {view === 'landing' && (
-        <LandingHero onStart={() => setView('setup')} onDemo={loadDemo} />
+        <LandingHero onStart={() => setView('auth')} onDemo={loadDemo} />
+      )}
+      {view === 'auth' && (
+        <AuthPage onSuccess={handleAuthSuccess} onBack={() => setView('landing')} />
       )}
       {view === 'setup' && (
-        <MultiStepForm onSubmit={handleSetup} onBack={() => setView('landing')} />
+        <MultiStepForm onSubmit={handleSetup} onBack={() => setView('auth')} />
       )}
       {view === 'edit' && (
         <MultiStepForm
@@ -196,21 +219,16 @@ export default function App() {
           onSearch={() => runSearch(profile)}
           onEdit={() => setView('edit')}
           onViewResults={() => { setOutput(lastSearch.output); setView('results') }}
-          onShowAuth={() => setShowAuth(true)}
           onLogout={handleLogout}
         />
       )}
-      {view === 'searching' && <SearchProgress events={events} />}
+      {view === 'searching' && <SearchProgress events={events} onBack={() => setView('profile')} />}
       {view === 'results' && (
         <Results
           output={output}
           onProfile={() => setView('profile')}
           onNewSearch={() => runSearch(profile)}
         />
-      )}
-
-      {showAuth && (
-        <AuthModal onSuccess={handleAuthSuccess} onClose={() => setShowAuth(false)} />
       )}
     </div>
   )

@@ -85,7 +85,7 @@ function completeness(profile) {
   return Math.round((filled / (optional.length + lists.length + 3)) * 100)
 }
 
-export default function ProfileView({ profile, lastSearch, user, onSearch, onEdit, onViewResults, onShowAuth, onLogout }) {
+export default function ProfileView({ profile, lastSearch, user, onSearch, onEdit, onViewResults, onLogout }) {
   if (!profile) return null
   const pct = completeness(profile)
 
@@ -98,23 +98,16 @@ export default function ProfileView({ profile, lastSearch, user, onSearch, onEdi
 
           {/* Auth status */}
           <div className="flex items-center gap-2 text-sm">
-            {user ? (
+            {user && (
               <>
                 <span className="hidden sm:inline-flex items-center gap-1.5 text-emerald-600 font-medium">
                   <span className="w-2 h-2 bg-emerald-500 rounded-full" />
-                  Synced · {user.email}
+                  {user.email}
                 </span>
                 <button onClick={onLogout} className="text-gray-400 hover:text-gray-600 transition-colors text-xs border border-gray-200 px-2.5 py-1 rounded-lg">
                   Sign out
                 </button>
               </>
-            ) : (
-              <button
-                onClick={onShowAuth}
-                className="inline-flex items-center gap-1.5 text-gray-500 hover:text-blue-600 transition-colors text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:border-blue-200"
-              >
-                ☁️ Sync across devices
-              </button>
             )}
           </div>
 

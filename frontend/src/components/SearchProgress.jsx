@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 function calcProgress(events) {
   const searches = events.filter(e => e.type === 'search').length
@@ -22,7 +22,7 @@ function phaseLabel(events) {
   return 'Starting up…'
 }
 
-function EventRow({ event, index }) {
+function EventRow({ event }) {
   if (event.type === 'search') {
     return (
       <div className="flex items-start gap-3 py-2.5 border-b border-gray-50 last:border-0 animate-fade-in">
@@ -50,21 +50,64 @@ function EventRow({ event, index }) {
   return null
 }
 
-export default function SearchProgress({ events, done = false }) {
-  const logRef = useRef(null)
+export default function SearchProgress({ events, onBack, done = false }) {
+  const logRef   = useRef(null)
+  const startRef = useRef(Date.now())
+  const [elapsed, setElapsed] = useState(0)
 
-  const searches = events.filter(e => e.type === 'search').length
-  const extracts = events.filter(e => e.type === 'extract').length
-  const toolEvents = events.filter(e => e.type === 'search' || e.type === 'extract' || e.type === 'error')
-  const recent = toolEvents.slice(-30)
-  const progress = done ? 100 : calcProgress(events)
-  const phase = done ? 'Done!' : phaseLabel(events)
+  const searches   = events.filter(e => e.type === 'search').length
+  const extracts   = events.filter(e => e.type === 'extract').length
+  const toolEvents = events.filter(e => ['search', 'extract', 'error'].includes(e.type))
+  const recent     = toolEvents.slice(-30)
+  const progress   = done ? 100 : calcProgress(events)
+  const phase      = done ? 'Done!' : phaseLabel(events)
+  const hasFailed  = events.some(e => e.type === 'error') && !done
 
   useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight
-    }
+    if (done || hasFailed) return
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [done, hasFailed])
+
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [events])
+
+  const mm = String(Math.floor(elapsed / 60)).padStart(2, '0')
+  const ss = String(elapsed % 60).padStart(2, '0')
+
+  if (hasFailed) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
+        <div className="w-full max-w-sm text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-2xl mb-6 border border-red-100">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Search failed</h2>
+          <p className="text-gray-500 text-sm mb-8">
+            Something went wrong during the search. This is usually a temporary API issue.
+          </p>
+          <div className="space-y-3">
+            <button
+              onClick={onBack}
+              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
+            >
+              Try again →
+            </button>
+            <button
+              onClick={onBack}
+              className="w-full py-3 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors"
+            >
+              Back to profile
+            </button>
+          </div>
+          {events.filter(e => e.type === 'error').map((e, i) => (
+            <p key={i} className="mt-4 text-xs text-red-400">{e.message}</p>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
@@ -80,6 +123,7 @@ export default function SearchProgress({ events, done = false }) {
           <p className="text-gray-500 mt-2 text-sm leading-relaxed">
             This takes 5–10 minutes. Every scholarship is verified before appearing in your results.
           </p>
+          <p className="text-xs text-gray-300 mt-1 tabular-nums">{mm}:{ss} elapsed</p>
         </div>
 
         {/* Progress bar */}
@@ -119,7 +163,7 @@ export default function SearchProgress({ events, done = false }) {
               <span className="text-sm font-medium text-gray-600">Live activity</span>
             </div>
             <div ref={logRef} className="p-4 max-h-64 overflow-y-auto scrollbar-thin">
-              {recent.map((ev, i) => <EventRow key={i} event={ev} index={i} />)}
+              {recent.map((ev, i) => <EventRow key={i} event={ev} />)}
             </div>
           </div>
         )}

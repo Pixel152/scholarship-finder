@@ -38,10 +38,10 @@ function parseBlock(block) {
   const score = scoreMatch ? parseInt(scoreMatch[1]) : 0
   const scoreReason = easeRaw.replace(/\d+\/10\s*[—–\-]?\s*/, '').trim()
 
-  // Apply URL + contact
-  const applyParts = applyRaw.split(/\s*\|\s*/)
-  const applyUrl     = applyParts[0]?.trim() || ''
-  const applyContact = applyParts[1]?.trim() || ''
+  // Apply URL + contact — extract URL explicitly so stray text doesn't become the href
+  const urlMatch    = applyRaw.match(/https?:\/\/[^\s|]+/)
+  const applyUrl    = urlMatch?.[0]?.replace(/[),.:]+$/, '') || ''
+  const applyContact = applyRaw.replace(urlMatch?.[0] || '', '').replace(/^\s*\|?\s*/, '').trim()
 
   return {
     rank: parseInt(rankStr),
@@ -172,9 +172,9 @@ function ScholarshipCard({ s }) {
       {(s.applyUrl || s.applyContact) && (
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-4">
           <span className="text-sm text-gray-500 truncate min-w-0">{s.applyContact}</span>
-          {s.applyUrl && (
+          {s.applyUrl && /^https?:\/\//.test(s.applyUrl) && (
             <a
-              href={s.applyUrl.startsWith('http') ? s.applyUrl : `https://${s.applyUrl}`}
+              href={s.applyUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors"
@@ -216,7 +216,8 @@ export default function Results({ output, onProfile, onNewSearch }) {
              : [...scholarships]
 
     if (sort === 'amount') {
-      list.sort((a, b) => (parseInt(b.amount.replace(/\D/g, '')) || 0) - (parseInt(a.amount.replace(/\D/g, '')) || 0))
+      const firstNum = s => parseInt(s.amount?.match(/[\d,]+/)?.[0]?.replace(/,/g, '')) || 0
+      list.sort((a, b) => firstNum(b) - firstNum(a))
     } else {
       list.sort((a, b) => b.score - a.score)
     }

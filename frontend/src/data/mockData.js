@@ -43,16 +43,16 @@ export const MOCK_OUTPUT = `ALREADY APPLIED (excluded): Gates Scholarship
    Match:       Columbia junior in CS — already enrolled, zero extra steps required
    Ease of win: 9/10 — no separate application; eligible by virtue of enrollment and academic record
 
-#2. QuestBridge College Match Scholarship — QuestBridge
-   Amount:      Full 4-year scholarship | renewable
-   Status:      UPCOMING — deadline September 26, 2026
-   Eligibility: First-generation, low-to-middle income, high-achieving undergraduate
-   Awards/yr:   ~1,500 — selective but designed for this exact profile
-   Apply:       https://www.questbridge.org/college-prep-scholars | scholars@questbridge.org
-   Effort:      Application + 3 essays + transcript + 2 recommendations
-   Past winners:First-gen students from families earning under $65K, avg GPA 3.9, often STEM majors
-   Match:       First-generation + financial need + Latino + high GPA — textbook QuestBridge profile
-   Ease of win: 8/10 — highly competitive but applicant profile is a near-exact match
+#2. Thurgood Marshall College Fund HBCU Scholarship — TMCF
+   Amount:      $3,200/yr | renewable (up to 4 years)
+   Status:      OPEN — deadline March 15, 2026
+   Eligibility: First-generation college student, financial need, GPA 3.0+, US citizen
+   Awards/yr:   ~300 — moderate pool, need-based gating keeps competition low
+   Apply:       https://tmcf.org/our-scholarships | scholarships@tmcf.org
+   Effort:      Online application, 1 essay (750 words), FAFSA, 1 recommendation
+   Past winners:First-gen students from families earning under $75K, STEM majors well represented
+   Match:       First-generation + financial need + GPA 3.7 + US citizen — all core criteria met
+   Ease of win: 8/10 — not widely indexed, financial need + first-gen combination filters most applicants out
 
 #3. Society of Hispanic Professional Engineers (SHPE) Scholarship — SHPE Foundation
    Amount:      $3,000 | renewable

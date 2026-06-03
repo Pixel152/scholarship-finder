@@ -6,12 +6,13 @@ from queue import Empty, Queue
 from typing import List, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-
-from fastapi import Header, HTTPException
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from agent import run_agent
 from auth import AuthError, init_db, signup, login, save_profile, get_profile, verify_token
@@ -25,13 +26,23 @@ for _candidate in [Path(__file__).parent / ".env", Path(__file__).parent.parent.
 
 init_db()
 
+_REQUIRED_ENV = ["ANTHROPIC_API_KEY", "NIMBLE_API_KEY"]
+_missing = [k for k in _REQUIRED_ENV if not os.getenv(k)]
+if _missing:
+    raise RuntimeError(f"Missing required environment variables: {', '.join(_missing)}")
+
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="ScholarMatch API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+_ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "PUT"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -125,7 +136,8 @@ class ProfileSaveRequest(BaseModel):
 
 
 @app.post("/api/auth/signup")
-def auth_signup(body: AuthRequest):
+@limiter.limit("10/minute")
+def auth_signup(request: Request, body: AuthRequest):
     try:
         return signup(body.email, body.password)
     except AuthError as e:
@@ -133,7 +145,8 @@ def auth_signup(body: AuthRequest):
 
 
 @app.post("/api/auth/login")
-def auth_login(body: AuthRequest):
+@limiter.limit("10/minute")
+def auth_login(request: Request, body: AuthRequest):
     try:
         return login(body.email, body.password)
     except AuthError as e:

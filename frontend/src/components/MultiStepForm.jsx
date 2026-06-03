@@ -284,15 +284,28 @@ function isStepValid(step, data) {
   return true
 }
 
+const DRAFT_KEY = 'sm_form_draft'
+
 export default function MultiStepForm({ onSubmit, onBack, initialData = null, editMode = false }) {
   const [step, setStep] = useState(0)
   const [data, setData] = useState(() => {
-    if (!initialData) return INITIAL
-    // Merge initialData over INITIAL so all keys exist even if profile is old
-    return { ...INITIAL, ...initialData, gpa: initialData.gpa ?? '' }
+    if (initialData) return { ...INITIAL, ...initialData, gpa: initialData.gpa ?? '' }
+    if (!editMode) {
+      try {
+        const draft = JSON.parse(localStorage.getItem(DRAFT_KEY))
+        if (draft) return { ...INITIAL, ...draft }
+      } catch {}
+    }
+    return INITIAL
   })
 
-  const update = (key, val) => setData(prev => ({ ...prev, [key]: val }))
+  const update = (key, val) => setData(prev => {
+    const next = { ...prev, [key]: val }
+    if (!editMode) {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(next)) } catch {}
+    }
+    return next
+  })
   const StepComponent = STEP_COMPONENTS[step]
   const valid = isStepValid(step, data)
   const isLast = step === STEPS.length - 1
@@ -300,6 +313,7 @@ export default function MultiStepForm({ onSubmit, onBack, initialData = null, ed
   const handleNext = () => {
     if (!valid) return
     if (isLast) {
+      try { localStorage.removeItem(DRAFT_KEY) } catch {}
       onSubmit({ ...data, gpa: data.gpa ? parseFloat(data.gpa) : null })
     } else {
       setStep(s => s + 1)
