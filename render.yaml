@@ -1,12 +1,26 @@
+databases:
+  - name: scholarmatch-db
+    databaseName: scholarmatch
+    user: scholarmatch
+    plan: free
+
 services:
   - type: web
     name: scholarmatch-api
-    env: python
+    runtime: python
+    rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    rootDir: backend
     envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: scholarmatch-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: NIMBLE_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
         sync: false

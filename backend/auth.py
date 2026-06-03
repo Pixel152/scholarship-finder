@@ -5,30 +5,37 @@ import hashlib
 import hmac
 import json
 import os
-import sqlite3
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Optional
 
 import jwt
+import psycopg2
+import psycopg2.errors
 
-DB_PATH   = Path(__file__).parent / "users.db"
-_SECRET   = os.getenv("JWT_SECRET", "scholarmatch-dev-secret-change-in-prod")
-_ALG      = "HS256"
+_SECRET     = os.getenv("JWT_SECRET", "scholarmatch-dev-secret-change-in-prod")
+_ALG        = "HS256"
 _TOKEN_DAYS = 30
 
 
+def _db():
+    return psycopg2.connect(os.environ["DATABASE_URL"])
+
+
 def init_db() -> None:
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                email        TEXT    UNIQUE NOT NULL,
-                password_hash TEXT   NOT NULL,
-                profile_json TEXT,
-                created_at   TEXT    DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+    conn = _db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id            SERIAL PRIMARY KEY,
+                    email         TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    profile_json  TEXT,
+                    created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _hash(password: str) -> str:
@@ -39,9 +46,9 @@ def _hash(password: str) -> str:
 
 def _verify(password: str, stored: str) -> bool:
     try:
-        raw  = base64.b64decode(stored.encode())
-        salt, key = raw[:32], raw[32:]
-        new  = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000)
+        raw        = base64.b64decode(stored.encode())
+        salt, key  = raw[:32], raw[32:]
+        new        = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000)
         return hmac.compare_digest(key, new)
     except Exception:
         return False
@@ -73,25 +80,36 @@ def signup(email: str, password: str) -> dict:
     email = email.lower().strip()
     if len(password) < 6:
         raise AuthError("Password must be at least 6 characters.")
-    with sqlite3.connect(DB_PATH) as conn:
-        try:
-            cur = conn.execute(
-                "INSERT INTO users (email, password_hash) VALUES (?, ?) RETURNING id",
-                (email, _hash(password)),
-            )
-            user_id = cur.fetchone()[0]
-        except sqlite3.IntegrityError:
-            raise AuthError("An account with that email already exists.")
+    conn = _db()
+    try:
+        with conn.cursor() as cur:
+            try:
+                cur.execute(
+                    "INSERT INTO users (email, password_hash) VALUES (%s, %s) RETURNING id",
+                    (email, _hash(password)),
+                )
+                user_id = cur.fetchone()[0]
+                conn.commit()
+            except psycopg2.errors.UniqueViolation:
+                conn.rollback()
+                raise AuthError("An account with that email already exists.")
+    finally:
+        conn.close()
     return {"token": _token(user_id, email), "email": email}
 
 
 def login(email: str, password: str) -> dict:
     email = email.lower().strip()
-    with sqlite3.connect(DB_PATH) as conn:
-        row = conn.execute(
-            "SELECT id, password_hash, profile_json FROM users WHERE email = ?",
-            (email,),
-        ).fetchone()
+    conn = _db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, password_hash, profile_json FROM users WHERE email = %s",
+                (email,),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
     if not row or not _verify(password, row[1]):
         raise AuthError("Invalid email or password.")
     user_id, _, profile_json = row
@@ -103,22 +121,32 @@ def save_profile(token: str, profile: dict) -> None:
     payload = verify_token(token)
     if not payload:
         raise AuthError("Invalid or expired token.")
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            "UPDATE users SET profile_json = ? WHERE id = ?",
-            (json.dumps(profile), int(payload["sub"])),
-        )
+    conn = _db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET profile_json = %s WHERE id = %s",
+                (json.dumps(profile), int(payload["sub"])),
+            )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_profile(token: str) -> dict | None:
     payload = verify_token(token)
     if not payload:
         raise AuthError("Invalid or expired token.")
-    with sqlite3.connect(DB_PATH) as conn:
-        row = conn.execute(
-            "SELECT profile_json FROM users WHERE id = ?",
-            (int(payload["sub"]),),
-        ).fetchone()
+    conn = _db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT profile_json FROM users WHERE id = %s",
+                (int(payload["sub"]),),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
     if not row or not row[0]:
         return None
     return json.loads(row[0])
