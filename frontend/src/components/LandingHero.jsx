@@ -1,4 +1,4 @@
-export default function LandingHero({ onStart }) {
+export default function LandingHero({ onStart, onDemo }) {
   return (
     <div className="min-h-screen flex flex-col">
       <nav className="px-8 py-5 flex items-center justify-between max-w-6xl mx-auto w-full">
@@ -21,12 +21,20 @@ export default function LandingHero({ onStart }) {
           professional associations, union funds. Every result is verified before we show it.
         </p>
 
-        <button
-          onClick={onStart}
-          className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-10 py-4 rounded-xl text-lg shadow-lg shadow-blue-200 transition-all hover:shadow-xl hover:-translate-y-0.5"
-        >
-          Find My Scholarships →
-        </button>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <button
+            onClick={onStart}
+            className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold px-10 py-4 rounded-xl text-lg shadow-lg shadow-blue-200 transition-all hover:shadow-xl hover:-translate-y-0.5"
+          >
+            Find My Scholarships →
+          </button>
+          <button
+            onClick={onDemo}
+            className="border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 font-medium px-8 py-4 rounded-xl text-lg transition-all hover:-translate-y-0.5"
+          >
+            View Demo
+          </button>
+        </div>
 
         <p className="mt-5 text-sm text-gray-400">
           Free · 2-minute setup · Results in ~10 minutes

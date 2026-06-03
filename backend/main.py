@@ -11,7 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from fastapi import Header, HTTPException
+
 from agent import run_agent
+from auth import AuthError, init_db, signup, login, save_profile, get_profile, verify_token
 from student_profile import StudentProfile
 
 # Walk up from backend/ to find the .env (works locally and on Render)
@@ -19,6 +22,8 @@ for _candidate in [Path(__file__).parent / ".env", Path(__file__).parent.parent.
     if _candidate.exists():
         load_dotenv(_candidate, override=True)
         break
+
+init_db()
 
 app = FastAPI(title="ScholarMatch API")
 
@@ -107,3 +112,49 @@ def search_scholarships(body: ProfileRequest):
             "Connection": "keep-alive",
         },
     )
+
+
+# ── Auth endpoints ────────────────────────────────────────────────────────────
+
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+class ProfileSaveRequest(BaseModel):
+    profile: dict
+
+
+@app.post("/api/auth/signup")
+def auth_signup(body: AuthRequest):
+    try:
+        return signup(body.email, body.password)
+    except AuthError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/auth/login")
+def auth_login(body: AuthRequest):
+    try:
+        return login(body.email, body.password)
+    except AuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+@app.get("/api/auth/profile")
+def auth_get_profile(authorization: str = Header(default="")):
+    token = authorization.removeprefix("Bearer ").strip()
+    try:
+        profile = get_profile(token)
+        return {"profile": profile}
+    except AuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+@app.put("/api/auth/profile")
+def auth_save_profile(body: ProfileSaveRequest, authorization: str = Header(default="")):
+    token = authorization.removeprefix("Bearer ").strip()
+    try:
+        save_profile(token, body.profile)
+        return {"ok": True}
+    except AuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
