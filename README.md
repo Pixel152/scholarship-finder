@@ -1,0 +1,11 @@
+---
+title: ScholarMatch API
+emoji: 🎓
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+ScholarMatch — AI-powered niche scholarship finder.
