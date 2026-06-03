@@ -1,5 +1,27 @@
 import { useEffect, useRef } from 'react'
 
+function calcProgress(events) {
+  const searches = events.filter(e => e.type === 'search').length
+  const extracts = events.filter(e => e.type === 'extract').length
+  const texts    = events.filter(e => e.type === 'text').length
+
+  if (texts > 0)    return Math.min(85 + texts * 3, 95)
+  if (extracts > 0) return Math.min(50 + (extracts / 20) * 35, 84)
+  if (searches > 0) return Math.min(2  + (searches / 45) * 48, 50)
+  return 2
+}
+
+function phaseLabel(events) {
+  const texts    = events.filter(e => e.type === 'text').length
+  const extracts = events.filter(e => e.type === 'extract').length
+  const searches = events.filter(e => e.type === 'search').length
+
+  if (texts > 0)    return 'Building your results…'
+  if (extracts > 0) return 'Verifying scholarship pages…'
+  if (searches > 0) return 'Searching the web…'
+  return 'Starting up…'
+}
+
 function EventRow({ event, index }) {
   if (event.type === 'search') {
     return (
@@ -28,13 +50,15 @@ function EventRow({ event, index }) {
   return null
 }
 
-export default function SearchProgress({ events }) {
+export default function SearchProgress({ events, done = false }) {
   const logRef = useRef(null)
 
   const searches = events.filter(e => e.type === 'search').length
   const extracts = events.filter(e => e.type === 'extract').length
   const toolEvents = events.filter(e => e.type === 'search' || e.type === 'extract' || e.type === 'error')
   const recent = toolEvents.slice(-30)
+  const progress = done ? 100 : calcProgress(events)
+  const phase = done ? 'Done!' : phaseLabel(events)
 
   useEffect(() => {
     if (logRef.current) {
@@ -42,12 +66,10 @@ export default function SearchProgress({ events }) {
     }
   }, [events])
 
-  const phase = extracts > 0 ? 'Verifying pages…' : searches > 20 ? 'Deep searching…' : 'Searching the web…'
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
       <div className="w-full max-w-xl">
-        <div className="text-center mb-10">
+        <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-2xl mb-6 border border-blue-100">
             <svg className="w-8 h-8 text-blue-600 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
@@ -58,6 +80,25 @@ export default function SearchProgress({ events }) {
           <p className="text-gray-500 mt-2 text-sm leading-relaxed">
             This takes 5–10 minutes. Every scholarship is verified before appearing in your results.
           </p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="mb-8">
+          <div className="flex justify-between text-xs text-gray-400 mb-1.5">
+            <span>{phase}</span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-2 bg-blue-600 rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="flex justify-between text-xs text-gray-300 mt-1.5">
+            <span>Search</span>
+            <span>Verify</span>
+            <span>Results</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-6">

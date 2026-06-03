@@ -284,9 +284,13 @@ function isStepValid(step, data) {
   return true
 }
 
-export default function MultiStepForm({ onSubmit, onBack }) {
+export default function MultiStepForm({ onSubmit, onBack, initialData = null, editMode = false }) {
   const [step, setStep] = useState(0)
-  const [data, setData] = useState(INITIAL)
+  const [data, setData] = useState(() => {
+    if (!initialData) return INITIAL
+    // Merge initialData over INITIAL so all keys exist even if profile is old
+    return { ...INITIAL, ...initialData, gpa: initialData.gpa ?? '' }
+  })
 
   const update = (key, val) => setData(prev => ({ ...prev, [key]: val }))
   const StepComponent = STEP_COMPONENTS[step]
@@ -309,7 +313,7 @@ export default function MultiStepForm({ onSubmit, onBack }) {
           ← Back
         </button>
         <span className="text-blue-600 font-bold text-sm">ScholarMatch</span>
-        <span className="text-sm text-gray-400">Step {step + 1} of {STEPS.length}</span>
+        <span className="text-sm text-gray-400">{editMode ? 'Edit Profile · ' : ''}Step {step + 1} of {STEPS.length}</span>
       </div>
 
       <div className="h-1 bg-gray-100">
@@ -322,6 +326,9 @@ export default function MultiStepForm({ onSubmit, onBack }) {
       <div className="flex-1 flex items-start justify-center px-6 py-10">
         <div className="w-full max-w-2xl">
           <div className="mb-7">
+            {editMode && step === 0 && (
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Editing Profile</p>
+            )}
             <h2 className="text-2xl font-bold text-gray-900">{STEPS[step].title}</h2>
             <p className="text-gray-500 mt-1 text-sm">{STEPS[step].subtitle}</p>
           </div>
@@ -348,7 +355,7 @@ export default function MultiStepForm({ onSubmit, onBack }) {
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {isLast ? 'Find My Scholarships →' : 'Continue →'}
+              {isLast ? (editMode ? 'Save Profile ✓' : 'Find My Scholarships →') : 'Continue →'}
             </button>
           </div>
 

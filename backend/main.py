@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+from pathlib import Path
 from queue import Empty, Queue
 from typing import List, Optional
 
@@ -13,7 +14,11 @@ from pydantic import BaseModel
 from agent import run_agent
 from student_profile import StudentProfile
 
-load_dotenv()
+# Walk up from backend/ to find the .env (works locally and on Render)
+for _candidate in [Path(__file__).parent / ".env", Path(__file__).parent.parent.parent / ".env"]:
+    if _candidate.exists():
+        load_dotenv(_candidate, override=True)
+        break
 
 app = FastAPI(title="ScholarMatch API")
 
