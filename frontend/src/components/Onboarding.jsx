@@ -77,6 +77,7 @@ function Confetti() {
 function Logo({ onClick }) {
   return (
     <button onClick={onClick} className="flex items-center gap-2 group">
+      <span className="text-gray-400 group-hover:text-blue-500 transition-colors text-lg font-light leading-none">←</span>
       <span className="text-xl leading-none">🎓</span>
       <span className="font-black text-gray-900 text-base tracking-tight group-hover:text-blue-600 transition-colors">
         ScholarMatch
