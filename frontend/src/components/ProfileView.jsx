@@ -85,7 +85,7 @@ function completeness(profile) {
   return Math.round((filled / (optional.length + lists.length + 3)) * 100)
 }
 
-export default function ProfileView({ profile, lastSearch, user, onSearch, onEdit, onViewResults, onLogout, searchRunning = false }) {
+export default function ProfileView({ profile, lastSearch, user, onSearch, onEdit, onViewResults, onLogout, onTracker, trackerCount = 0, searchRunning = false }) {
   if (!profile) return null
   const pct = completeness(profile)
 
@@ -112,6 +112,17 @@ export default function ProfileView({ profile, lastSearch, user, onSearch, onEdi
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={onTracker}
+              className="relative text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              🔖 Tracker
+              {trackerCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-blue-600 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none">
+                  {trackerCount > 9 ? '9+' : trackerCount}
+                </span>
+              )}
+            </button>
             <button
               onClick={onEdit}
               className="text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium"

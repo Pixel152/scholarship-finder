@@ -132,8 +132,13 @@ function Row({ label, value }) {
   )
 }
 
-function ScholarshipCard({ s }) {
+function ScholarshipCard({ s, saved = false, onSave, onUnsave }) {
   const c = scoreColors(s.score)
+
+  const handleBookmark = () => {
+    if (saved) onUnsave?.(makeTrackerId(s))
+    else onSave?.(s)
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -148,8 +153,23 @@ function ScholarshipCard({ s }) {
             <h3 className="text-lg font-bold text-gray-900 leading-snug">{s.name}</h3>
             <p className="text-sm text-gray-500 mt-0.5">{s.org}</p>
           </div>
-          <div className={`flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-sm font-bold ${c.badge}`}>
-            {s.score}/10
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleBookmark}
+              title={saved ? 'Remove from tracker' : 'Save to tracker'}
+              className={`p-1.5 rounded-lg transition-all ${
+                saved
+                  ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                  : 'text-gray-300 hover:text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="w-5 h-5" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+            </button>
+            <div className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-sm font-bold ${c.badge}`}>
+              {s.score}/10
+            </div>
           </div>
         </div>
 
@@ -220,7 +240,9 @@ function RawView({ output, onReset }) {
 
 // ─── Main dashboard ──────────────────────────────────────────────────────────
 
-export default function Results({ output, onProfile, onNewSearch }) {
+export const makeTrackerId = (s) => `${s.name}|||${s.org}`.toLowerCase().slice(0, 80)
+
+export default function Results({ output, onProfile, onNewSearch, trackerIds = new Set(), onSave, onUnsave }) {
   const [sort, setSort]     = useState('score')
   const [filter, setFilter] = useState('all')
 
@@ -326,7 +348,15 @@ export default function Results({ output, onProfile, onNewSearch }) {
 
         {/* Cards */}
         <div className="space-y-4">
-          {displayed.map(s => <ScholarshipCard key={s.rank} s={s} />)}
+          {displayed.map(s => (
+          <ScholarshipCard
+            key={s.rank}
+            s={s}
+            saved={trackerIds.has(makeTrackerId(s))}
+            onSave={onSave}
+            onUnsave={onUnsave}
+          />
+        ))}
         </div>
 
         {/* Quick wins */}

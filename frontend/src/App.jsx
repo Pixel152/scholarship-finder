@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import ProfileView from './components/ProfileView'
 import MultiStepForm from './components/MultiStepForm'
 import Onboarding from './components/Onboarding'
-import Results from './components/Results'
+import Results, { makeTrackerId } from './components/Results'
+import TrackerView from './components/TrackerView'
 import SearchNotification from './components/SearchNotification'
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
@@ -13,6 +14,7 @@ const K = {
   count:   'sm_last_count',
   token:   'sm_token',
   email:   'sm_email',
+  tracker: 'sm_tracker',
 }
 
 const ls = {
@@ -56,8 +58,9 @@ export default function App() {
   const [lastSearch,   setLastSearch]   = useState(loadLastSearch)
   const [events,       setEvents]       = useState([])
   const [output,       setOutput]       = useState('')
-  const [searchStatus, setSearchStatus] = useState('idle') // 'idle' | 'running' | 'done' | 'failed'
-  const [user,         setUser]         = useState(() => {
+  const [searchStatus,   setSearchStatus]   = useState('idle')
+  const [trackerItems,   setTrackerItems]   = useState(() => ls.get(K.tracker) || [])
+  const [user,           setUser]           = useState(() => {
     const token = localStorage.getItem(K.token)
     const email = localStorage.getItem(K.email)
     return token && email ? { token, email } : null
@@ -121,6 +124,53 @@ export default function App() {
     } else {
       setView('setup')
     }
+  }
+
+  // ── tracker CRUD ─────────────────────────────────────────────────────────
+  const saveTrackerItem = (s) => {
+    const item = {
+      id: makeTrackerId(s),
+      name: s.name,
+      org: s.org,
+      amount: s.amount,
+      deadline: s.deadline,
+      scholarshipStatus: s.status,
+      applyUrl: s.applyUrl,
+      applyContact: s.applyContact,
+      score: s.score,
+      trackerStatus: 'saved',
+      notes: '',
+      addedAt: new Date().toISOString(),
+    }
+    setTrackerItems(prev => {
+      const next = [...prev.filter(t => t.id !== item.id), item]
+      ls.set(K.tracker, next)
+      return next
+    })
+  }
+
+  const unsaveTrackerItem = (id) => {
+    setTrackerItems(prev => {
+      const next = prev.filter(t => t.id !== id)
+      ls.set(K.tracker, next)
+      return next
+    })
+  }
+
+  const updateTrackerStatus = (id, status) => {
+    setTrackerItems(prev => {
+      const next = prev.map(t => t.id === id ? { ...t, trackerStatus: status } : t)
+      ls.set(K.tracker, next)
+      return next
+    })
+  }
+
+  const updateTrackerNotes = (id, notes) => {
+    setTrackerItems(prev => {
+      const next = prev.map(t => t.id === id ? { ...t, notes } : t)
+      ls.set(K.tracker, next)
+      return next
+    })
   }
 
   const handleLogout = () => {
@@ -226,7 +276,18 @@ export default function App() {
           onEdit={() => setView('edit')}
           onViewResults={viewResults}
           onLogout={handleLogout}
+          onTracker={() => setView('tracker')}
+          trackerCount={trackerItems.length}
           searchRunning={searchStatus === 'running'}
+        />
+      )}
+      {view === 'tracker' && (
+        <TrackerView
+          items={trackerItems}
+          onBack={() => setView('profile')}
+          onUpdateStatus={updateTrackerStatus}
+          onUpdateNotes={updateTrackerNotes}
+          onRemove={unsaveTrackerItem}
         />
       )}
       {view === 'results' && (
@@ -234,6 +295,9 @@ export default function App() {
           output={output || lastSearch.output || ''}
           onProfile={() => setView('profile')}
           onNewSearch={() => { setView('profile'); runSearch(profile) }}
+          trackerIds={new Set(trackerItems.map(t => t.id))}
+          onSave={saveTrackerItem}
+          onUnsave={unsaveTrackerItem}
         />
       )}
 
