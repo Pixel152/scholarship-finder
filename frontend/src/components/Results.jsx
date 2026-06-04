@@ -3,13 +3,24 @@ import { useMemo, useState } from 'react'
 // ─── Parser ──────────────────────────────────────────────────────────────────
 
 function parseField(body, label) {
-  const re = new RegExp(`${label}:\\s*([^\\n]+)`, 'i')
-  return body.match(re)?.[1]?.trim() || ''
+  // Handle both plain "Label: value" and markdown "**Label:** value" or "**Label: X/10**"
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`\\*{0,2}${escaped}:\\*{0,2}\\s*([^\\n]+)`, 'i')
+  const raw = body.match(re)?.[1]?.trim() || ''
+  return raw.replace(/\*+/g, '').trim()
+}
+
+function normalizeOutput(text) {
+  return text
+    .replace(/^#{1,3}\s*(#\d+\.)/gm, '$1')   // "## #1." → "#1."
+    .replace(/^#{1,3}\s+(?!#)/gm, '')         // stray "## " lines without a rank
 }
 
 function parseBlock(block) {
   const lines = block.split('\n')
-  const header = lines[0].match(/^#(\d+)\.\s+(.+?)\s+[—–\-]+\s+(.+)$/)
+  // Strip any leading markdown bold/italic from the header line
+  const headerLine = lines[0].replace(/\*+/g, '').trim()
+  const header = headerLine.match(/^#(\d+)\.\s+(.+?)\s+[—–\-]+\s+(.+)$/)
   if (!header) return null
 
   const [, rankStr, name, org] = header
@@ -64,8 +75,9 @@ function parseBlock(block) {
 }
 
 function parseOutput(text) {
+  const normalized = normalizeOutput(text)
   const scholarships = []
-  const blocks = text.split(/(?=^#\d+\.)/m)
+  const blocks = normalized.split(/(?=^#\d+\.)/m)
 
   for (const block of blocks) {
     if (!/^#\d+\./.test(block.trimStart())) continue
@@ -75,11 +87,11 @@ function parseOutput(text) {
     } catch {}
   }
 
-  const totalMatch = text.match(/TOTAL ESTIMATED VALUE[^\$\n]*(\$[\d,]+(?:\s*[–—\-]\s*\$[\d,]+)?)/i)
+  const totalMatch = normalized.match(/TOTAL ESTIMATED VALUE[^\$\n]*(\$[\d,]+(?:\s*[–—\-]\s*\$[\d,]+)?)/i)
   const totalValue  = totalMatch?.[1] || ''
 
-  const qwIdx    = text.indexOf('QUICK WINS THIS WEEK')
-  const quickWins = qwIdx !== -1 ? text.slice(qwIdx + 20).trim() : ''
+  const qwIdx    = normalized.indexOf('QUICK WINS THIS WEEK')
+  const quickWins = qwIdx !== -1 ? normalized.slice(qwIdx + 20).trim() : ''
 
   return { scholarships, totalValue, quickWins }
 }

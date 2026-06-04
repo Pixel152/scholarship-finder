@@ -227,22 +227,25 @@ SKIP — do NOT include in output at all:
   If you cannot confirm a deadline, mark Status as UPCOMING — never guess OPEN.
 
 ═══════════════════════════════════════════════════════════
-OUTPUT FORMAT
+OUTPUT FORMAT — follow exactly, no markdown
 ═══════════════════════════════════════════════════════════
+CRITICAL: Do NOT use markdown headers (##, ###) or bold (**text**) anywhere in the output.
+Use only plain text exactly as shown in the template below.
+
 First show:
 ALREADY APPLIED (excluded): [list if any, else "None"]
 
-Then rank top-10 by ease of win:
+Then rank top-10 by ease of win using this EXACT plain-text format:
 
 #[rank]. [Scholarship Name] — [Organization]
    Amount:      $[amount] | [one-time or renewable]
    Status:      [OPEN — deadline DATE] or [CLOSED — reopens ~MONTH] or [UPCOMING]
    Eligibility: [key requirements — confirmed from extracted page]
    Awards/yr:   [number] — [what this means for competition]
-   Apply:       [the EXACT URL you passed to nimble_extract — not any link found inside the extracted content, not the search result URL, not a homepage. Must be the direct scholarship or application page. If the extracted content showed a redirect or a different canonical URL, use that final URL instead] | [contact email if found]
+   Apply:       [the EXACT URL you passed to nimble_extract — not a link found inside the page, not a homepage. Must be the direct scholarship page] | [contact email if found]
    Effort:      [e.g. "short form, no essay" or "2 essays + 1 rec letter"]
-   Past winners:[brief note if found, e.g. "CS students from NYC, avg 3.6 GPA"]
-   Match:       [why this student specifically qualifies — cite the profile field that unlocks it]
+   Past winners:[brief note if found]
+   Match:       [why this student specifically qualifies — cite the profile field]
    Ease of win: [X/10] — [key reason]
 
 ⚠️ VERIFY note: flag any detail that could not be confirmed via extract.
