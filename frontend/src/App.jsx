@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import ProfileView from './components/ProfileView'
 import MultiStepForm from './components/MultiStepForm'
 import Onboarding from './components/Onboarding'
-import SearchProgress from './components/SearchProgress'
 import Results from './components/Results'
+import SearchNotification from './components/SearchNotification'
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 const K = {
@@ -47,16 +47,17 @@ async function cloudSaveProfile(token, profile) {
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [view,       setView]       = useState(() => {
+  const [view,         setView]         = useState(() => {
     const token = localStorage.getItem(K.token)
     const savedProfile = ls.get(K.profile)
     return token && savedProfile ? 'profile' : 'setup'
   })
-  const [profile,    setProfile]    = useState(() => ls.get(K.profile))
-  const [lastSearch, setLastSearch] = useState(loadLastSearch)
-  const [events,     setEvents]     = useState([])
-  const [output,     setOutput]     = useState('')
-  const [user,       setUser]       = useState(() => {
+  const [profile,      setProfile]      = useState(() => ls.get(K.profile))
+  const [lastSearch,   setLastSearch]   = useState(loadLastSearch)
+  const [events,       setEvents]       = useState([])
+  const [output,       setOutput]       = useState('')
+  const [searchStatus, setSearchStatus] = useState('idle') // 'idle' | 'running' | 'done' | 'failed'
+  const [user,         setUser]         = useState(() => {
     const token = localStorage.getItem(K.token)
     const email = localStorage.getItem(K.email)
     return token && email ? { token, email } : null
@@ -101,6 +102,7 @@ export default function App() {
     setProfile(profileData)
     ls.set(K.profile, profileData)
     cloudSaveProfile(token, profileData)
+    setView('profile')
     runSearch(profileData)
   }
 
@@ -125,14 +127,16 @@ export default function App() {
     setUser(null)
     ls.remove(K.token)
     ls.remove(K.email)
+    setSearchStatus('idle')
     setView('setup')
   }
 
-  // ── streaming search ─────────────────────────────────────────────────────
+  // ── streaming search (runs in background) ───────────────────────────────
   const runSearch = async (profileData) => {
     eventsRef.current = []
+    setEvents([])
     setOutput('')
-    setView('searching')
+    setSearchStatus('running')
 
     let fullText = ''
     try {
@@ -165,7 +169,7 @@ export default function App() {
               const count = (fullText.match(/^#\d+\./gm) || []).length
               persistResults(fullText, count)
               setOutput(fullText)
-              setView('results')
+              setSearchStatus('done')
               return
             }
             if (ev.type === 'text') fullText += ev.content + '\n\n'
@@ -179,14 +183,22 @@ export default function App() {
         const count = (fullText.match(/^#\d+\./gm) || []).length
         persistResults(fullText, count)
         setOutput(fullText)
-        setView('results')
+        setSearchStatus('done')
+      } else {
+        setSearchStatus('failed')
       }
     } catch (err) {
       eventsRef.current = [...eventsRef.current, { type: 'error', message: err.message }]
+      setSearchStatus('failed')
     }
   }
 
   const handleEdit = (data) => { persistProfile(data); setView('profile') }
+
+  const viewResults = () => {
+    setOutput(output || lastSearch.output || '')
+    setView('results')
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -212,16 +224,28 @@ export default function App() {
           user={user}
           onSearch={() => runSearch(profile)}
           onEdit={() => setView('edit')}
-          onViewResults={() => { setOutput(lastSearch.output); setView('results') }}
+          onViewResults={viewResults}
           onLogout={handleLogout}
+          searchRunning={searchStatus === 'running'}
         />
       )}
-      {view === 'searching' && <SearchProgress events={events} onBack={() => setView('profile')} />}
       {view === 'results' && (
         <Results
-          output={output}
+          output={output || lastSearch.output || ''}
           onProfile={() => setView('profile')}
-          onNewSearch={() => runSearch(profile)}
+          onNewSearch={() => { setView('profile'); runSearch(profile) }}
+        />
+      )}
+
+      {/* Floating search notification — shown on all views except setup */}
+      {view !== 'setup' && (
+        <SearchNotification
+          events={events}
+          status={searchStatus}
+          output={output}
+          onViewResults={viewResults}
+          onRetry={() => runSearch(profile)}
+          onDismiss={() => setSearchStatus('idle')}
         />
       )}
     </div>

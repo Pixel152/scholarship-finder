@@ -85,7 +85,7 @@ function completeness(profile) {
   return Math.round((filled / (optional.length + lists.length + 3)) * 100)
 }
 
-export default function ProfileView({ profile, lastSearch, user, onSearch, onEdit, onViewResults, onLogout }) {
+export default function ProfileView({ profile, lastSearch, user, onSearch, onEdit, onViewResults, onLogout, searchRunning = false }) {
   if (!profile) return null
   const pct = completeness(profile)
 
@@ -120,9 +120,14 @@ export default function ProfileView({ profile, lastSearch, user, onSearch, onEdi
             </button>
             <button
               onClick={onSearch}
-              className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-semibold shadow-sm"
+              disabled={searchRunning}
+              className={`text-sm px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors ${
+                searchRunning
+                  ? 'bg-blue-400 text-white cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
             >
-              Find Scholarships →
+              {searchRunning ? 'Searching…' : 'Find Scholarships →'}
             </button>
           </div>
         </div>
@@ -246,9 +251,14 @@ export default function ProfileView({ profile, lastSearch, user, onSearch, onEdi
           </button>
           <button
             onClick={onSearch}
-            className="flex-1 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-all shadow-md shadow-blue-200 hover:-translate-y-0.5 text-sm"
+            disabled={searchRunning}
+            className={`flex-1 py-3.5 rounded-xl font-semibold transition-all text-sm ${
+              searchRunning
+                ? 'bg-blue-400 text-white cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5'
+            }`}
           >
-            🔍  Find Scholarships →
+            {searchRunning ? '🔍  Searching in background…' : '🔍  Find Scholarships →'}
           </button>
         </div>
       </div>
