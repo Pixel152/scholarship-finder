@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import LandingHero from './components/LandingHero'
 import ProfileView from './components/ProfileView'
 import MultiStepForm from './components/MultiStepForm'
+import Onboarding from './components/Onboarding'
 import SearchProgress from './components/SearchProgress'
 import Results from './components/Results'
 import AuthPage from './components/AuthPage'
@@ -201,7 +202,7 @@ export default function App() {
         <AuthPage onSuccess={handleAuthSuccess} onBack={() => setView('landing')} />
       )}
       {view === 'setup' && (
-        <MultiStepForm onSubmit={handleSetup} onBack={() => setView('auth')} />
+        <Onboarding onSubmit={handleSetup} onBack={() => setView('auth')} />
       )}
       {view === 'edit' && (
         <MultiStepForm
