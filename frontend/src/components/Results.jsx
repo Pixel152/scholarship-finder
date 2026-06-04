@@ -194,7 +194,7 @@ function RawView({ output, onReset }) {
   return (
     <div className="min-h-screen">
       <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <button onClick={onReset} className="text-blue-600 font-bold hover:text-blue-700">ScholarMatch</button>
+        <button onClick={onReset} className="flex items-center gap-1.5 font-black text-gray-900 hover:text-blue-600 transition-colors"><span className="text-xl leading-none">🎓</span> ScholarMatch</button>
         <button onClick={onReset} className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">My Profile</button>
       </div>
       <pre className="max-w-3xl mx-auto px-6 py-12 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{output}</pre>
@@ -241,8 +241,8 @@ export default function Results({ output, onProfile, onNewSearch }) {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onProfile} className="text-blue-600 font-bold hover:text-blue-700 transition-colors">
-              ScholarMatch
+            <button onClick={onProfile} className="flex items-center gap-1.5 font-black text-gray-900 hover:text-blue-600 transition-colors">
+              <span className="text-xl leading-none">🎓</span> ScholarMatch
             </button>
             <span className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
               {scholarships.length} scholarships found

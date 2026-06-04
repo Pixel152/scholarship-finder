@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import LandingHero from './components/LandingHero'
 import ProfileView from './components/ProfileView'
 import MultiStepForm from './components/MultiStepForm'
 import Onboarding from './components/Onboarding'
 import SearchProgress from './components/SearchProgress'
 import Results from './components/Results'
-import AuthPage from './components/AuthPage'
-import { MOCK_PROFILE, MOCK_OUTPUT, MOCK_DATE, MOCK_COUNT } from './data/mockData'
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 const K = {
@@ -53,7 +50,7 @@ export default function App() {
   const [view,       setView]       = useState(() => {
     const token = localStorage.getItem(K.token)
     const savedProfile = ls.get(K.profile)
-    return token && savedProfile ? 'profile' : 'landing'
+    return token && savedProfile ? 'profile' : 'setup'
   })
   const [profile,    setProfile]    = useState(() => ls.get(K.profile))
   const [lastSearch, setLastSearch] = useState(loadLastSearch)
@@ -81,7 +78,7 @@ export default function App() {
         setUser(null)
         ls.remove(K.token)
         ls.remove(K.email)
-        setView('auth')
+        setView('setup')
       }
     }
   }
@@ -95,8 +92,20 @@ export default function App() {
     localStorage.setItem(K.count,  String(count))
   }
 
-  // ── auth ─────────────────────────────────────────────────────────────────
-  const handleAuthSuccess = ({ token, email, cloudProfile }) => {
+  // ── new user finishes onboarding ─────────────────────────────────────────
+  const handleOnboardingComplete = ({ profile: profileData, token, email }) => {
+    const newUser = { token, email }
+    setUser(newUser)
+    ls.set(K.token, token)
+    ls.set(K.email, email)
+    setProfile(profileData)
+    ls.set(K.profile, profileData)
+    cloudSaveProfile(token, profileData)
+    runSearch(profileData)
+  }
+
+  // ── returning user signs in via onboarding ───────────────────────────────
+  const handleSignIn = ({ token, email, cloudProfile }) => {
     setUser({ token, email })
     ls.set(K.token, token)
     ls.set(K.email, email)
@@ -105,7 +114,7 @@ export default function App() {
       ls.set(K.profile, cloudProfile)
       setView('profile')
     } else if (profile) {
-      cloudSaveProfile(token, profile) // best-effort, token just issued so won't be 401
+      cloudSaveProfile(token, profile)
       setView('profile')
     } else {
       setView('setup')
@@ -116,20 +125,7 @@ export default function App() {
     setUser(null)
     ls.remove(K.token)
     ls.remove(K.email)
-    setView('landing')
-  }
-
-  // ── demo mode ────────────────────────────────────────────────────────────
-  const loadDemo = () => {
-    setProfile(MOCK_PROFILE)
-    ls.set(K.profile, MOCK_PROFILE)
-    const ls2 = { output: MOCK_OUTPUT, date: MOCK_DATE, count: MOCK_COUNT }
-    setLastSearch(ls2)
-    localStorage.setItem(K.output, MOCK_OUTPUT)
-    localStorage.setItem(K.date,   MOCK_DATE)
-    localStorage.setItem(K.count,  String(MOCK_COUNT))
-    setOutput(MOCK_OUTPUT)
-    setView('results')
+    setView('setup')
   }
 
   // ── streaming search ─────────────────────────────────────────────────────
@@ -190,19 +186,16 @@ export default function App() {
     }
   }
 
-  const handleSetup = (data) => { persistProfile(data); runSearch(data) }
-  const handleEdit  = (data) => { persistProfile(data); setView('profile') }
+  const handleEdit = (data) => { persistProfile(data); setView('profile') }
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {view === 'landing' && (
-        <LandingHero onStart={() => setView('auth')} onDemo={loadDemo} />
-      )}
-      {view === 'auth' && (
-        <AuthPage onSuccess={handleAuthSuccess} onBack={() => setView('landing')} />
-      )}
       {view === 'setup' && (
-        <Onboarding onSubmit={handleSetup} onBack={() => setView('auth')} />
+        <Onboarding
+          onComplete={handleOnboardingComplete}
+          onSignIn={handleSignIn}
+          user={user}
+        />
       )}
       {view === 'edit' && (
         <MultiStepForm

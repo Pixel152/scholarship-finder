@@ -50,6 +50,17 @@ function EventRow({ event }) {
   return null
 }
 
+function Logo({ onClick }) {
+  return (
+    <button onClick={onClick} className="flex items-center gap-2 group">
+      <span className="text-xl leading-none">🎓</span>
+      <span className="font-black text-gray-900 text-base tracking-tight group-hover:text-blue-600 transition-colors">
+        ScholarMatch
+      </span>
+    </button>
+  )
+}
+
 export default function SearchProgress({ events, onBack, done = false }) {
   const logRef   = useRef(null)
   const startRef = useRef(Date.now())
@@ -78,39 +89,44 @@ export default function SearchProgress({ events, onBack, done = false }) {
 
   if (hasFailed) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
-        <div className="w-full max-w-sm text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-2xl mb-6 border border-red-100">
-            <span className="text-3xl">⚠️</span>
+      <div className="min-h-screen flex flex-col px-6 py-8">
+        <Logo onClick={onBack} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-full max-w-sm text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-2xl mb-6 border border-red-100">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Search failed</h2>
+            <p className="text-gray-500 text-sm mb-8">
+              Something went wrong during the search. This is usually a temporary API issue.
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={onBack}
+                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
+              >
+                Try again →
+              </button>
+              <button
+                onClick={onBack}
+                className="w-full py-3 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors"
+              >
+                Back to profile
+              </button>
+            </div>
+            {events.filter(e => e.type === 'error').map((e, i) => (
+              <p key={i} className="mt-4 text-xs text-red-400">{e.message}</p>
+            ))}
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Search failed</h2>
-          <p className="text-gray-500 text-sm mb-8">
-            Something went wrong during the search. This is usually a temporary API issue.
-          </p>
-          <div className="space-y-3">
-            <button
-              onClick={onBack}
-              className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors"
-            >
-              Try again →
-            </button>
-            <button
-              onClick={onBack}
-              className="w-full py-3 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors"
-            >
-              Back to profile
-            </button>
-          </div>
-          {events.filter(e => e.type === 'error').map((e, i) => (
-            <p key={i} className="mt-4 text-xs text-red-400">{e.message}</p>
-          ))}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
+    <div className="min-h-screen flex flex-col px-6 py-8">
+      <Logo onClick={onBack} />
+      <div className="flex-1 flex items-center justify-center py-8">
       <div className="w-full max-w-xl">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-2xl mb-6 border border-blue-100">
@@ -174,6 +190,7 @@ export default function SearchProgress({ events, onBack, done = false }) {
           </div>
         )}
       </div>
+    </div>
     </div>
   )
 }
