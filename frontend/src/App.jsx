@@ -6,6 +6,7 @@ import Results, { makeTrackerId } from './components/Results'
 import TrackerView from './components/TrackerView'
 import DashboardLayout from './components/DashboardLayout'
 import SearchNotification from './components/SearchNotification'
+import ImportReviewPage from './components/ImportReviewPage'
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 const K = {
@@ -66,6 +67,7 @@ export default function App() {
     const email = localStorage.getItem(K.email)
     return token && email ? { token, email } : null
   })
+  const [importState,    setImportState]    = useState(null)  // { profile, warnings, importedKeys, currentData }
   const eventsRef = useRef([])
 
   useEffect(() => {
@@ -246,6 +248,22 @@ export default function App() {
 
   const handleEdit = (data) => { persistProfile(data); setView('profile') }
 
+  const handleImportReview = ({ profile, warnings, currentData }) => {
+    const importedKeys = Object.keys(profile).filter(k => {
+      const v = profile[k]
+      if (Array.isArray(v)) return v.length > 0
+      return v !== null && v !== undefined && v !== '' && v !== false
+    })
+    setImportState({ profile, warnings, importedKeys, currentData })
+    setView('import-review')
+  }
+
+  const handleImportSave = (mergedProfile) => {
+    persistProfile(mergedProfile)
+    setImportState(null)
+    setView('profile')
+  }
+
   const viewResults = () => {
     setOutput(output || lastSearch.output || '')
     setView('results')
@@ -278,7 +296,18 @@ export default function App() {
           initialData={profile}
           onSubmit={handleEdit}
           onBack={() => setView('profile')}
+          onImportReview={handleImportReview}
           editMode
+        />
+      )}
+      {view === 'import-review' && importState && (
+        <ImportReviewPage
+          initialProfile={importState.profile}
+          currentProfile={importState.currentData || profile}
+          importedKeys={importState.importedKeys}
+          warnings={importState.warnings}
+          onSave={handleImportSave}
+          onCancel={() => setView('edit')}
         />
       )}
 

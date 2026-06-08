@@ -445,7 +445,7 @@ function isStepValid(step, data) {
 
 const DRAFT_KEY = 'sm_form_draft'
 
-export default function MultiStepForm({ onSubmit, onBack, initialData = null, editMode = false }) {
+export default function MultiStepForm({ onSubmit, onBack, onImportReview, initialData = null, editMode = false }) {
   const [step,        setStep]        = useState(0)
   const [showImport,  setShowImport]  = useState(false)
   const [data, setData] = useState(() => {
@@ -480,16 +480,10 @@ export default function MultiStepForm({ onSubmit, onBack, initialData = null, ed
     }
   }
 
-  const handleImport = (imported) => {
-    // Merge imported fields — only overwrite empty fields so manual entries are preserved
-    setData(prev => {
-      const next = { ...prev }
-      for (const [k, v] of Object.entries(imported)) {
-        if (Array.isArray(v) && v.length > 0 && (!prev[k] || prev[k].length === 0)) next[k] = v
-        else if (!Array.isArray(v) && v !== null && v !== undefined && v !== '' && !prev[k]) next[k] = v
-      }
-      return next
-    })
+  const handleImport = ({ profile, warnings }) => {
+    if (onImportReview) {
+      onImportReview({ profile, warnings, currentData: { ...data, gpa: data.gpa ? parseFloat(data.gpa) : null } })
+    }
   }
 
   return (
