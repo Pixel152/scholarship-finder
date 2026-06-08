@@ -180,38 +180,47 @@ def auth_save_profile(body: ProfileSaveRequest, authorization: str = Header(defa
 
 _IMPORT_PROMPT = """Extract scholarship profile information from this document.
 Return ONLY a JSON object — no explanation, no markdown, just raw JSON.
-Only include fields where you found clear information. Omit any field that is not present.
 
-Fields to extract:
+Return this exact structure:
 {
-  "name": "full name",
-  "university": "exact school name",
-  "major": "field of study",
-  "year": "freshman|sophomore|junior|senior|graduate",
-  "gpa": 3.7,
-  "intended_profession": "...",
-  "hometown_city": "...",
-  "hometown_state": "two-letter abbreviation",
-  "hometown_county": "...",
-  "high_school": "...",
-  "citizenship": "us_citizen|permanent_resident|daca|international",
-  "heritage": "ethnicity or cultural background if stated",
-  "religion": "...",
-  "languages": ["Spanish", "Mandarin"],
-  "first_gen": true,
-  "financial_need": true,
-  "military_family": true,
-  "activities": ["Soccer", "Debate team"],
-  "national_club_orgs": ["Key Club", "DECA"],
-  "honors": ["National Merit Semifinalist"],
-  "parent_employer": "...",
-  "parent_industry": "...",
-  "parent_union": "...",
-  "career_goal": "...",
-  "income_bracket": "..."
+  "profile": {
+    "name": "full name",
+    "university": "exact school name",
+    "major": "field of study",
+    "year": "freshman|sophomore|junior|senior|graduate",
+    "gpa": 3.7,
+    "intended_profession": "...",
+    "hometown_city": "...",
+    "hometown_state": "two-letter abbreviation",
+    "hometown_county": "...",
+    "high_school": "...",
+    "citizenship": "us_citizen|permanent_resident|daca|international",
+    "heritage": "ethnicity or cultural background if stated",
+    "religion": "...",
+    "languages": ["Spanish", "Mandarin"],
+    "first_gen": true,
+    "financial_need": true,
+    "military_family": true,
+    "activities": ["Soccer", "Debate team"],
+    "national_club_orgs": ["Key Club", "DECA"],
+    "honors": ["National Merit Semifinalist"],
+    "parent_employer": "...",
+    "parent_industry": "...",
+    "parent_union": "...",
+    "career_goal": "...",
+    "income_bracket": "..."
+  },
+  "warnings": [
+    "Guessed hometown_state as TX from mentioned city — verify if correct",
+    "GPA listed as a range (3.5–3.8) — used midpoint 3.65"
+  ]
 }
 
-Return ONLY valid JSON. Do not guess — only include what is clearly stated in the document."""
+Rules:
+- Only include profile fields where you found CLEAR information. Omit fields not present.
+- The warnings array should flag: fields you inferred/guessed rather than read directly, ambiguous values, or anything the user should double-check.
+- If nothing is uncertain, return warnings as an empty array [].
+- Return ONLY valid JSON."""
 
 
 @app.post("/api/import-profile")
@@ -266,8 +275,12 @@ async def import_profile(
         raw_text = raw_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
     try:
-        profile_data = json.loads(raw_text)
+        parsed = json.loads(raw_text)
     except json.JSONDecodeError:
         raise HTTPException(status_code=422, detail="Could not parse profile from document — try pasting text instead.")
 
-    return profile_data
+    # Support both new {profile, warnings} shape and legacy flat shape
+    if "profile" in parsed and isinstance(parsed["profile"], dict):
+        return {"profile": parsed["profile"], "warnings": parsed.get("warnings", [])}
+    else:
+        return {"profile": parsed, "warnings": []}
