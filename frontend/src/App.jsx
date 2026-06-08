@@ -4,6 +4,7 @@ import MultiStepForm from './components/MultiStepForm'
 import Onboarding from './components/Onboarding'
 import Results, { makeTrackerId } from './components/Results'
 import TrackerView from './components/TrackerView'
+import DashboardLayout from './components/DashboardLayout'
 import SearchNotification from './components/SearchNotification'
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
@@ -250,6 +251,19 @@ export default function App() {
     setView('results')
   }
 
+  const handleNavigate = (target) => {
+    if (target === 'results') {
+      if (!output && !lastSearch.output) return
+      viewResults()
+    } else if (target === 'edit') {
+      setView('edit')
+    } else {
+      setView(target)
+    }
+  }
+
+  const dashboardViews = ['profile', 'results', 'tracker']
+
   return (
     <div className="min-h-screen bg-slate-50">
       {view === 'setup' && (
@@ -267,38 +281,45 @@ export default function App() {
           editMode
         />
       )}
-      {view === 'profile' && (
-        <ProfileView
-          profile={profile}
-          lastSearch={lastSearch}
-          user={user}
-          onSearch={() => runSearch(profile)}
-          onEdit={() => setView('edit')}
-          onViewResults={viewResults}
-          onLogout={handleLogout}
-          onTracker={() => setView('tracker')}
+
+      {dashboardViews.includes(view) && (
+        <DashboardLayout
+          activeView={view}
+          onNavigate={handleNavigate}
           trackerCount={trackerItems.length}
-          searchRunning={searchStatus === 'running'}
-        />
-      )}
-      {view === 'tracker' && (
-        <TrackerView
-          items={trackerItems}
-          onBack={() => setView('profile')}
-          onUpdateStatus={updateTrackerStatus}
-          onUpdateNotes={updateTrackerNotes}
-          onRemove={unsaveTrackerItem}
-        />
-      )}
-      {view === 'results' && (
-        <Results
-          output={output || lastSearch.output || ''}
-          onProfile={() => setView('profile')}
-          onNewSearch={() => { setView('profile'); runSearch(profile) }}
-          trackerIds={new Set(trackerItems.map(t => t.id))}
-          onSave={saveTrackerItem}
-          onUnsave={unsaveTrackerItem}
-        />
+          hasResults={!!(output || lastSearch.output)}
+        >
+          {view === 'profile' && (
+            <ProfileView
+              profile={profile}
+              lastSearch={lastSearch}
+              user={user}
+              onSearch={() => runSearch(profile)}
+              onEdit={() => setView('edit')}
+              onViewResults={viewResults}
+              onLogout={handleLogout}
+              searchRunning={searchStatus === 'running'}
+            />
+          )}
+          {view === 'tracker' && (
+            <TrackerView
+              items={trackerItems}
+              onUpdateStatus={updateTrackerStatus}
+              onUpdateNotes={updateTrackerNotes}
+              onRemove={unsaveTrackerItem}
+            />
+          )}
+          {view === 'results' && (
+            <Results
+              output={output || lastSearch.output || ''}
+              onProfile={() => setView('profile')}
+              onNewSearch={() => { setView('profile'); runSearch(profile) }}
+              trackerIds={new Set(trackerItems.map(t => t.id))}
+              onSave={saveTrackerItem}
+              onUnsave={unsaveTrackerItem}
+            />
+          )}
+        </DashboardLayout>
       )}
 
       {/* Floating search notification — shown on all views except setup */}

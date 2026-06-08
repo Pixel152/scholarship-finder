@@ -17,36 +17,100 @@ const INITIAL = {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function TagInput({ value = [], onChange, placeholder, inputRef }) {
-  const [text, setText] = useState('')
-  const commit = () => {
-    const tag = text.trim().replace(/,+$/, '')
-    if (tag && !value.includes(tag)) onChange([...value, tag])
+const CLUB_ORG_SUGGESTIONS = [
+  '4-H', 'FFA (Future Farmers of America)', 'DECA', 'FBLA (Future Business Leaders of America)',
+  'FCCLA', 'HOSA (Health Occupations Students of America)', 'Key Club International',
+  'National Honor Society (NHS)', 'National Beta Club', 'SkillsUSA',
+  'Technology Student Association (TSA)', 'Eagle Scout / Boy Scouts of America',
+  'Girl Scouts Gold Award', 'Rotary International / Interact Club', 'FIRST Robotics',
+  'Science Olympiad', 'NSDA / Speech and Debate', 'Academic Decathlon', 'MATHCOUNTS',
+  'Civil Air Patrol (CAP)', 'JROTC', 'Junior Achievement (JA)', 'Phi Theta Kappa (PTK)',
+  'Student Council / SGA', 'Model United Nations (MUN)', 'American Legion / Sons of the American Legion',
+  'Elks Lodge (BPOE)', 'Jack and Jill of America', 'NAACP Youth Council',
+  'Junior State of America (JSA)', 'Future Problem Solving Program (FPSP)',
+  'Odyssey of the Mind', 'YMCA Youth & Government',
+]
+
+function TagInput({ value = [], onChange, placeholder, inputRef, suggestions = [] }) {
+  const [text,      setText]      = useState('')
+  const [open,      setOpen]      = useState(false)
+  const [activeIdx, setActiveIdx] = useState(-1)
+  const containerRef = useRef(null)
+
+  const filtered = text.trim().length > 0 && suggestions.length > 0
+    ? suggestions.filter(s => s.toLowerCase().includes(text.toLowerCase()) && !value.includes(s)).slice(0, 7)
+    : []
+
+  const commit = (tag) => {
+    const t = (tag || text).trim().replace(/,+$/, '')
+    if (t && !value.includes(t)) onChange([...value, t])
     setText('')
+    setOpen(false)
+    setActiveIdx(-1)
   }
+
+  useEffect(() => {
+    const h = (e) => { if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  const showDropdown = open && filtered.length > 0
+
   return (
-    <div className="border-b-2 border-gray-200 focus-within:border-blue-500 transition-colors pb-3">
-      <div className="flex flex-wrap gap-2 mb-2">
-        {value.map(tag => (
-          <span key={tag} className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 text-sm px-3 py-1 rounded-full border border-blue-200">
-            {tag}
-            <button type="button" onClick={() => onChange(value.filter(t => t !== tag))}
-              className="text-blue-400 hover:text-blue-700 font-bold leading-none ml-0.5">×</button>
-          </span>
-        ))}
+    <div ref={containerRef} className="relative">
+      <div className="border-b-2 border-gray-200 focus-within:border-blue-500 transition-colors pb-3">
+        <div className="flex flex-wrap gap-2 mb-2">
+          {value.map(tag => (
+            <span key={tag} className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 text-sm px-3 py-1 rounded-full border border-blue-200">
+              {tag}
+              <button type="button" onClick={() => onChange(value.filter(t => t !== tag))}
+                className="text-blue-400 hover:text-blue-700 font-bold leading-none ml-0.5">×</button>
+            </span>
+          ))}
+        </div>
+        <input
+          ref={inputRef}
+          className="w-full outline-none text-2xl font-light text-gray-900 placeholder-gray-300 bg-transparent"
+          value={text}
+          onChange={e => { setText(e.target.value); setOpen(true); setActiveIdx(-1) }}
+          onKeyDown={e => {
+            if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => Math.min(i + 1, filtered.length - 1)) }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => Math.max(i - 1, -1)) }
+            else if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault()
+              if (activeIdx >= 0 && filtered[activeIdx]) commit(filtered[activeIdx])
+              else commit()
+            } else if (e.key === 'Escape') { setOpen(false); setActiveIdx(-1) }
+            else if (e.key === 'Backspace' && !text && value.length) onChange(value.slice(0, -1))
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => { setOpen(false); setActiveIdx(-1) }, 150)}
+          placeholder={value.length === 0 ? placeholder : 'Add more...'}
+        />
       </div>
-      <input
-        ref={inputRef}
-        className="w-full outline-none text-2xl font-light text-gray-900 placeholder-gray-300 bg-transparent"
-        value={text}
-        onChange={e => setText(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); commit() }
-          if (e.key === 'Backspace' && !text && value.length) onChange(value.slice(0, -1))
-        }}
-        onBlur={commit}
-        placeholder={value.length === 0 ? placeholder : 'Add more...'}
-      />
+
+      {showDropdown && (
+        <div className="absolute z-50 mt-2 w-full bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="px-4 py-2 border-b border-gray-100">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Suggested organizations</span>
+          </div>
+          {filtered.map((s, i) => (
+            <button key={s} type="button" onMouseDown={() => commit(s)}
+              className={`w-full text-left px-4 py-3 text-base transition-colors ${
+                i === activeIdx ? 'bg-blue-50 text-blue-700' : 'text-gray-800 hover:bg-gray-50'
+              }`}>
+              {s}
+            </button>
+          ))}
+          {text.trim() && !suggestions.some(s => s.toLowerCase() === text.trim().toLowerCase()) && (
+            <button type="button" onMouseDown={() => commit(text.trim())}
+              className="w-full text-left px-4 py-3 text-sm text-gray-500 hover:bg-gray-50 border-t border-gray-100 transition-colors">
+              Add "<span className="font-medium text-gray-800">{text.trim()}</span>"
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -236,7 +300,8 @@ function buildQuestions(data) {
     {
       id: 'orgs', q: "Any national organizations?",
       sub: 'DECA, Key Club, FBLA, NHS, HOSA — they have scholarship funds most members never claim.',
-      type: 'tags', field: 'national_club_orgs', placeholder: 'DECA, Key Club, NHS...',
+      type: 'tags', field: 'national_club_orgs', placeholder: 'Type to search or add your own…',
+      suggestions: CLUB_ORG_SUGGESTIONS,
       required: false, isValid: () => true,
     },
     {
@@ -652,7 +717,7 @@ export default function Onboarding({ onComplete, onSignIn, user = null }) {
 
           {q.type === 'tags' && (
             <TagInput value={data[q.field] || []} onChange={val => update(q.field, val)}
-              placeholder={q.placeholder} inputRef={inputRef} />
+              placeholder={q.placeholder} inputRef={inputRef} suggestions={q.suggestions || []} />
           )}
 
           {q.type === 'parent' && (

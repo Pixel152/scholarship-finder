@@ -1,4 +1,43 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import ImportModal from './ImportModal'
+
+// National organizations with documented scholarship programs — used for autocomplete
+const CLUB_ORG_SUGGESTIONS = [
+  '4-H',
+  'FFA (Future Farmers of America)',
+  'DECA',
+  'FBLA (Future Business Leaders of America)',
+  'FCCLA',
+  'HOSA (Health Occupations Students of America)',
+  'Key Club International',
+  'National Honor Society (NHS)',
+  'National Beta Club',
+  'SkillsUSA',
+  'Technology Student Association (TSA)',
+  'Eagle Scout / Boy Scouts of America',
+  'Girl Scouts Gold Award',
+  'Rotary International / Interact Club',
+  'FIRST Robotics',
+  'Science Olympiad',
+  'NSDA / Speech and Debate',
+  'Academic Decathlon',
+  'MATHCOUNTS',
+  'Odyssey of the Mind',
+  'Civil Air Patrol (CAP)',
+  'JROTC',
+  'Junior Achievement (JA)',
+  'YMCA Youth & Government',
+  'Phi Theta Kappa (PTK)',
+  'Student Council / SGA',
+  'Model United Nations (MUN)',
+  'American Legion / Sons of the American Legion',
+  'Elks Lodge (BPOE)',
+  'Jack and Jill of America',
+  'NAACP Youth Council',
+  'National FFA Organization',
+  'Junior State of America (JSA)',
+  'Future Problem Solving Program (FPSP)',
+]
 
 const STEPS = [
   { title: 'About You', subtitle: 'Basic academic information' },
@@ -60,17 +99,132 @@ function TagInput({ value, onChange, placeholder }) {
   )
 }
 
+// TagInput with autocomplete dropdown — used for national_club_orgs
+function TagInputWithSuggestions({ value, onChange, placeholder, suggestions }) {
+  const [text,      setText]      = useState('')
+  const [open,      setOpen]      = useState(false)
+  const [activeIdx, setActiveIdx] = useState(-1)
+  const containerRef = useRef(null)
+
+  const filtered = text.trim().length > 0
+    ? suggestions.filter(s =>
+        s.toLowerCase().includes(text.toLowerCase()) &&
+        !value.includes(s)
+      ).slice(0, 7)
+    : []
+
+  const commit = (tag) => {
+    const t = (tag || text).trim().replace(/,+$/, '')
+    if (t && !value.includes(t)) onChange([...value, t])
+    setText('')
+    setOpen(false)
+    setActiveIdx(-1)
+  }
+
+  // Close when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const showDropdown = open && filtered.length > 0
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="border border-gray-300 rounded-lg p-2.5 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all bg-white min-h-[44px]">
+        <div className="flex flex-wrap gap-1.5 mb-1.5">
+          {value.map(tag => (
+            <span key={tag} className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 text-sm px-2.5 py-0.5 rounded-full border border-blue-200">
+              {tag}
+              <button
+                type="button"
+                onClick={() => onChange(value.filter(t => t !== tag))}
+                className="text-blue-400 hover:text-blue-700 font-bold leading-none ml-0.5"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+        <input
+          className="w-full outline-none text-sm text-gray-700 placeholder-gray-400 bg-transparent"
+          value={text}
+          onChange={e => { setText(e.target.value); setOpen(true); setActiveIdx(-1) }}
+          onKeyDown={e => {
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              setActiveIdx(i => Math.min(i + 1, filtered.length - 1))
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              setActiveIdx(i => Math.max(i - 1, -1))
+            } else if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault()
+              if (activeIdx >= 0 && filtered[activeIdx]) {
+                commit(filtered[activeIdx])
+              } else {
+                commit()
+              }
+            } else if (e.key === 'Escape') {
+              setOpen(false); setActiveIdx(-1)
+            } else if (e.key === 'Backspace' && !text && value.length) {
+              onChange(value.slice(0, -1))
+            }
+          }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => { setOpen(false); setActiveIdx(-1) }, 150)}
+          placeholder={value.length === 0 ? placeholder : 'Add another…'}
+        />
+      </div>
+
+      {/* Suggestions dropdown */}
+      {showDropdown && (
+        <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="px-3 py-1.5 border-b border-gray-100">
+            <span className="text-xs text-gray-400 font-medium">Suggested organizations</span>
+          </div>
+          {filtered.map((s, i) => (
+            <button
+              key={s}
+              type="button"
+              onMouseDown={() => commit(s)}
+              className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                i === activeIdx ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+          {text.trim() && !suggestions.some(s => s.toLowerCase() === text.trim().toLowerCase()) && (
+            <button
+              type="button"
+              onMouseDown={() => commit(text.trim())}
+              className="w-full text-left px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 border-t border-gray-100 transition-colors"
+            >
+              Add "<span className="font-medium text-gray-700">{text.trim()}</span>"
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Toggle({ checked, onChange, label, hint }) {
   return (
     <label className="flex items-center gap-3 cursor-pointer group">
       <div
         onClick={() => onChange(!checked)}
-        className={`relative flex-shrink-0 w-10 h-6 rounded-full transition-colors cursor-pointer ${checked ? 'bg-blue-600' : 'bg-gray-200'}`}
+        className={`relative flex-shrink-0 w-10 h-6 rounded-full transition-colors duration-200 cursor-pointer ${checked ? 'bg-blue-600' : 'bg-gray-200 group-hover:bg-gray-300'}`}
       >
-        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${checked ? 'translate-x-4' : ''}`} />
+        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${checked ? 'translate-x-4' : ''}`} />
       </div>
       <div>
-        <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{label}</span>
+        <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">{label}</span>
         {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
       </div>
     </label>
@@ -80,10 +234,10 @@ function Toggle({ checked, onChange, label, hint }) {
 function Field({ label, required, hint, children }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+      <label className="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">
         {label}
-        {required && <span className="text-red-400 ml-0.5">*</span>}
-        {hint && <span className="text-gray-400 font-normal ml-1.5 text-xs">{hint}</span>}
+        {required && <span className="text-red-400 ml-0.5 normal-case">*</span>}
+        {hint && <span className="text-gray-400 font-normal ml-1.5 normal-case text-xs tracking-normal">{hint}</span>}
       </label>
       {children}
     </div>
@@ -97,7 +251,7 @@ function Input({ value, onChange, placeholder, type = 'text' }) {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400 bg-white transition-all"
+      className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-300 bg-white transition-all duration-150 hover:border-gray-300"
     />
   )
 }
@@ -107,7 +261,7 @@ function Select({ value, onChange, options }) {
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all"
+      className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all duration-150 hover:border-gray-300 appearance-none cursor-pointer"
     >
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -247,7 +401,12 @@ function Step4({ data, update }) {
         label="National club organizations"
         hint="Key Club, DECA, FBLA, HOSA, 4-H, Rotaract — each has its own scholarship fund"
       >
-        <TagInput value={data.national_club_orgs} onChange={v => update('national_club_orgs', v)} placeholder="Key Club, DECA, FBLA…" />
+        <TagInputWithSuggestions
+          value={data.national_club_orgs}
+          onChange={v => update('national_club_orgs', v)}
+          placeholder="Type an org name or pick from suggestions…"
+          suggestions={CLUB_ORG_SUGGESTIONS}
+        />
       </Field>
 
       <Field label="Academic honors & awards" hint="National Merit, AP Scholar, valedictorian…">
@@ -287,7 +446,8 @@ function isStepValid(step, data) {
 const DRAFT_KEY = 'sm_form_draft'
 
 export default function MultiStepForm({ onSubmit, onBack, initialData = null, editMode = false }) {
-  const [step, setStep] = useState(0)
+  const [step,        setStep]        = useState(0)
+  const [showImport,  setShowImport]  = useState(false)
   const [data, setData] = useState(() => {
     if (initialData) return { ...INITIAL, ...initialData, gpa: initialData.gpa ?? '' }
     if (!editMode) {
@@ -320,8 +480,22 @@ export default function MultiStepForm({ onSubmit, onBack, initialData = null, ed
     }
   }
 
+  const handleImport = (imported) => {
+    // Merge imported fields — only overwrite empty fields so manual entries are preserved
+    setData(prev => {
+      const next = { ...prev }
+      for (const [k, v] of Object.entries(imported)) {
+        if (Array.isArray(v) && v.length > 0 && (!prev[k] || prev[k].length === 0)) next[k] = v
+        else if (!Array.isArray(v) && v !== null && v !== undefined && v !== '' && !prev[k]) next[k] = v
+      }
+      return next
+    })
+  }
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <>
+      {showImport && <ImportModal onImport={handleImport} onClose={() => setShowImport(false)} />}
+      <div className="min-h-screen flex flex-col">
       <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <button onClick={onBack} className="text-gray-400 hover:text-gray-600 text-sm flex items-center gap-1 transition-colors">
           ← Back
@@ -339,6 +513,19 @@ export default function MultiStepForm({ onSubmit, onBack, initialData = null, ed
 
       <div className="flex-1 flex items-start justify-center px-6 py-10">
         <div className="w-full max-w-2xl">
+          {/* Import button — shown on first step only */}
+          {step === 0 && (
+            <button
+              onClick={() => setShowImport(true)}
+              className="w-full mb-5 py-2.5 rounded-xl border border-dashed border-blue-300 text-blue-600 text-sm font-medium hover:bg-blue-50 hover:border-blue-400 transition-all flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Import from resume or document
+            </button>
+          )}
+
           <div className="mb-7">
             {editMode && step === 0 && (
               <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Editing Profile</p>
@@ -347,7 +534,7 @@ export default function MultiStepForm({ onSubmit, onBack, initialData = null, ed
             <p className="text-gray-500 mt-1 text-sm">{STEPS[step].subtitle}</p>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+          <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 md:p-8 animate-scale-in">
             <StepComponent data={data} update={update} />
           </div>
 
@@ -386,5 +573,6 @@ export default function MultiStepForm({ onSubmit, onBack, initialData = null, ed
         </div>
       </div>
     </div>
+    </>
   )
 }

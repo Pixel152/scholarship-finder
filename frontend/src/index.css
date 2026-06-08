@@ -3,9 +3,59 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply antialiased bg-slate-50 text-gray-900;
     font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    @apply bg-blue-100 text-blue-900;
+  }
+
+  /* Keyboard-only focus rings — no outline on click */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-blue-500 ring-offset-2;
+  }
+}
+
+@layer components {
+  /* Reusable card base */
+  .card {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-card;
+  }
+
+  .card-interactive {
+    @apply card transition-all duration-200 hover:shadow-card-lg hover:-translate-y-0.5 cursor-pointer;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-xl
+           px-5 py-2.5 text-sm shadow-sm hover:shadow-md transition-all duration-150
+           hover:-translate-y-px active:translate-y-0 active:shadow-sm;
+  }
+
+  /* Secondary / ghost button */
+  .btn-ghost {
+    @apply text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300
+           bg-white hover:bg-gray-50 font-medium rounded-xl px-4 py-2 text-sm
+           transition-all duration-150;
+  }
+
+  /* Tag chip */
+  .tag-chip {
+    @apply inline-flex items-center bg-blue-50 text-blue-700 text-xs font-medium
+           px-2.5 py-1 rounded-full border border-blue-100;
   }
 }
 
@@ -13,5 +63,32 @@
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: #e2e8f0 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar       { width: 4px; height: 4px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { @apply bg-gray-200 rounded-full; }
+
+  /* Loading shimmer */
+  .shimmer {
+    background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* Stagger helpers — apply animation-delay via inline style instead */
+  .stagger-1  { animation-delay:  60ms; }
+  .stagger-2  { animation-delay: 120ms; }
+  .stagger-3  { animation-delay: 180ms; }
+  .stagger-4  { animation-delay: 240ms; }
+  .stagger-5  { animation-delay: 300ms; }
+
+  /* Smooth press on interactive elements */
+  .press-effect {
+    @apply active:scale-[0.97] transition-transform duration-100;
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent;
   }
 }
