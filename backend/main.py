@@ -19,7 +19,7 @@ from slowapi.util import get_remote_address
 
 from agent import run_agent
 from auth import AuthError, init_db, signup, login, save_profile, get_profile, verify_token
-from nimble_client import nimble_extract, nimble_extract_linkedin
+from nimble_client import nimble_extract, nimble_extract_linkedin, nimble_search
 from student_profile import StudentProfile
 
 # Walk up from backend/ to find the .env (works locally and on Render)
