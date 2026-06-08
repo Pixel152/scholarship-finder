@@ -27,21 +27,29 @@ export default function StoryPage({ profile, onSave, onImportReview }) {
     if (!url.trim()) return
     setImportError('')
     setImporting(source)
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 55000)
     try {
       const res = await fetch(`${API}/api/import-linkedin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: url.trim() }),
+        signal: controller.signal,
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.detail || `Error ${res.status}`)
+        throw new Error(err.detail || `Server error ${res.status}`)
       }
       const data = await res.json()
       onImportReview({ profile: data.profile, warnings: data.warnings || [], from: 'story' })
     } catch (e) {
-      setImportError(e.message || 'Could not import — try again.')
+      if (e.name === 'AbortError') {
+        setImportError('Request timed out — the page took too long to load. Try again.')
+      } else {
+        setImportError(e.message || 'Could not import — try again.')
+      }
     } finally {
+      clearTimeout(timer)
       setImporting(null)
     }
   }

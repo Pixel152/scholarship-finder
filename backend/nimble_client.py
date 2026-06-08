@@ -85,7 +85,7 @@ def nimble_extract_linkedin(url: str, api_key: str) -> str:
                     "Accept-Language": "en-US,en;q=0.9",
                 },
             },
-            timeout=90,
+            timeout=50,
         )
         resp.raise_for_status()
         data = resp.json().get("data", {})
@@ -93,8 +93,9 @@ def nimble_extract_linkedin(url: str, api_key: str) -> str:
         if not raw:
             return ""
         text = _html_to_text(raw) if raw.lstrip().startswith("<") else raw
-        # LinkedIn login-wall detection
-        if any(phrase in text.lower() for phrase in ["join now", "sign in", "log in to see", "authwall"]):
+        # Detect hard auth-wall (redirected to login page, no profile content)
+        lower = text.lower()
+        if "authwall" in lower or ("sign in" in lower and len(text) < 500):
             return ""
         return text
     except Exception as e:

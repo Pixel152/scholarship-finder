@@ -127,19 +127,42 @@ function FullWidth({ children }) {
 
 export default function ImportReviewPage({ initialProfile, currentProfile, importedKeys, onSave, onCancel }) {
   // Merge: imported fields on top of current, but start editable
-  const [data, setData] = useState(() => ({
-    ...currentProfile,
-    ...Object.fromEntries(
-      Object.entries(initialProfile).filter(([, v]) => {
-        if (Array.isArray(v)) return v.length > 0
-        return v !== null && v !== undefined && v !== '' && v !== false
-      })
-    ),
-    gpa: initialProfile.gpa ?? currentProfile?.gpa ?? '',
-  }))
+  const [data, setData] = useState(() => {
+    const merged = { ...currentProfile }
+    for (const key of importedKeys) {
+      const imported = initialProfile[key]
+      const existing = currentProfile?.[key]
+      if (Array.isArray(imported)) {
+        // Merge arrays, deduplicate case-insensitively
+        const base = Array.isArray(existing) ? existing : []
+        const baseLower = base.map(v => v.toLowerCase())
+        const newItems = imported.filter(v => !baseLower.includes(v.toLowerCase()))
+        merged[key] = [...base, ...newItems]
+      } else {
+        // Only fill if current value is empty/falsy
+        const isEmpty = existing === null || existing === undefined || existing === '' || existing === false
+        if (isEmpty) merged[key] = imported
+      }
+    }
+    // GPA: only fill if not already set
+    if (!currentProfile?.gpa && initialProfile.gpa) merged.gpa = initialProfile.gpa
+    else merged.gpa = currentProfile?.gpa ?? ''
+    return merged
+  })
 
   const set = (key) => (val) => setData(prev => ({ ...prev, [key]: val }))
-  const isNew = (key) => importedKeys.includes(key)
+
+  // A field is "new" only if it was truly empty before import or had new array items added
+  const isNew = (key) => {
+    if (!importedKeys.includes(key)) return false
+    const existing = currentProfile?.[key]
+    if (Array.isArray(existing)) {
+      const imported = initialProfile[key] || []
+      const baseLower = existing.map(v => v.toLowerCase())
+      return imported.some(v => !baseLower.includes(v.toLowerCase()))
+    }
+    return existing === null || existing === undefined || existing === '' || existing === false
+  }
 
   const newCount = importedKeys.filter(k => {
     const v = data[k]
