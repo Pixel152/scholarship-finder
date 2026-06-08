@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ImportModal from './ImportModal'
 
 const API = import.meta.env.VITE_API_URL || ''
@@ -8,6 +8,12 @@ export default function StoryPage({ profile, onSave, onImportReview }) {
   const [linkedinUrl,   setLinkedinUrl]   = useState(profile?.linkedin_url   || '')
   const [websiteUrl,    setWebsiteUrl]    = useState(profile?.website_url    || '')
   const [portfolioUrl,  setPortfolioUrl]  = useState(profile?.portfolio_url  || '')
+
+  // Sync when profile updates (e.g. after returning from import review)
+  useEffect(() => { setExtraContext(profile?.extra_context  || '') }, [profile?.extra_context])
+  useEffect(() => { setLinkedinUrl(profile?.linkedin_url   || '') }, [profile?.linkedin_url])
+  useEffect(() => { setWebsiteUrl(profile?.website_url    || '') }, [profile?.website_url])
+  useEffect(() => { setPortfolioUrl(profile?.portfolio_url  || '') }, [profile?.portfolio_url])
   const [importing,     setImporting]     = useState(null)
   const [importError,   setImportError]   = useState('')
   const [showImport,    setShowImport]    = useState(false)

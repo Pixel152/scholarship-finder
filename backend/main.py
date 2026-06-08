@@ -264,13 +264,13 @@ Return this exact structure:
   ]
 }
 
-  "extra_context": "A short narrative summary (2-5 sentences) of anything in the document that doesn't fit the structured fields above — ventures, research, personal story, work experience, unique background, etc. Leave empty string if nothing notable."
+  "extra_context": "Write out EVERYTHING from the document that doesn't fit the structured fields: full bio/about section, work experience, internships, research, projects, ventures, volunteer work, extracurriculars, skills, publications, awards narrative, personal story. Write it as-is, preserve detail. Leave empty string only if there is truly nothing."
 }
 
 Rules:
 - Only include profile fields where you found CLEAR information. Omit fields not present.
-- extra_context should capture the human story, not repeat structured data.
-- warnings array: flag inferred/guessed values or anything to double-check. Empty array if nothing uncertain.
+- extra_context is the MOST IMPORTANT field for LinkedIn imports — copy the bio, all experience, activities, and any descriptive text verbatim or near-verbatim. Do not summarize away detail.
+- warnings array: flag inferred/guessed values. Empty array if nothing uncertain.
 - Return ONLY valid JSON."""
 
 
@@ -354,21 +354,32 @@ async def import_linkedin(request: Request, body: LinkedInImportRequest):
     is_linkedin = "linkedin.com/in/" in url
 
     if is_linkedin:
-        # LinkedIn personal profiles are login-gated even for headless browsers.
-        # Use Nimble Search to get Google's indexed snapshot of the profile instead.
-        # Google indexes name, title, company, location, and bio snippet.
+        # LinkedIn /in/ profiles are login-gated even to headless browsers.
+        # Use Nimble Search to pull Google's indexed snapshots instead —
+        # Google caches name, title, company, location, bio, education, and activities.
         username = url.rstrip("/").split("/in/")[-1].split("/")[0]
+        # Derive probable display name from slug (e.g. "erez-romer" → "Erez Romer")
+        display_name = " ".join(p.capitalize() for p in username.replace("-", " ").split())
+
         queries = [
             f'site:linkedin.com/in/{username}',
-            f'linkedin.com/in/{username}',
+            f'"{display_name}" linkedin profile',
+            f'"{display_name}" linkedin education university school',
+            f'"{display_name}" linkedin activities experience volunteer',
+            f'"{display_name}" linkedin skills background',
         ]
         snippets = []
-        for q in queries:
-            results = await asyncio.to_thread(nimble_search, q, nimble_key, 5)
+        search_tasks = [asyncio.to_thread(nimble_search, q, nimble_key, 8) for q in queries]
+        all_results = await asyncio.gather(*search_tasks)
+        seen_descs = set()
+        for results in all_results:
             for r in results:
-                parts = [r.get("title", ""), r.get("description", ""), r.get("url", "")]
-                snippets.append(" | ".join(p for p in parts if p))
-        page_text = "\n".join(snippets)
+                desc = r.get("description", "")
+                if desc and desc not in seen_descs:
+                    seen_descs.add(desc)
+                    parts = [r.get("title", ""), desc, r.get("url", "")]
+                    snippets.append(" | ".join(p for p in parts if p))
+        page_text = "\n\n".join(snippets)
     else:
         page_text = await asyncio.to_thread(nimble_extract, url, nimble_key)
 
@@ -380,8 +391,8 @@ async def import_linkedin(request: Request, body: LinkedInImportRequest):
         response = await asyncio.to_thread(
             client.messages.create,
             model="claude-sonnet-4-6",
-            max_tokens=1024,
-            messages=[{"role": "user", "content": f"{_IMPORT_PROMPT}\n\nDocument text:\n{page_text[:12000]}"}],
+            max_tokens=2048,
+            messages=[{"role": "user", "content": f"{_IMPORT_PROMPT}\n\nDocument text:\n{page_text[:16000]}"}],
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
