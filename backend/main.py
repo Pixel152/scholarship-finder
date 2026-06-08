@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import os
@@ -250,14 +251,17 @@ async def import_profile(
     else:
         raise HTTPException(status_code=400, detail="Provide a file or text to import.")
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": message_content}],
-    )
+    try:
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": message_content}],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
 
     raw_text = response.content[0].text.strip()
-    # Strip markdown code fences if present
     if raw_text.startswith("```"):
         raw_text = raw_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
