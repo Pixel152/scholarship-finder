@@ -19,6 +19,7 @@ from slowapi.util import get_remote_address
 
 from agent import run_agent
 from auth import AuthError, init_db, signup, login, save_profile, get_profile, verify_token
+from nimble_client import nimble_extract
 from student_profile import StudentProfile
 
 # Walk up from backend/ to find the .env (works locally and on Render)
@@ -79,6 +80,10 @@ class ProfileRequest(BaseModel):
     parent_union: str = ""
     career_goal: str = ""
     already_applied: List[str] = []
+    extra_context: str = ""
+    linkedin_url: str = ""
+    website_url: str = ""
+    portfolio_url: str = ""
 
 
 @app.get("/api/health")
@@ -284,3 +289,46 @@ async def import_profile(
         return {"profile": parsed["profile"], "warnings": parsed.get("warnings", [])}
     else:
         return {"profile": parsed, "warnings": []}
+
+
+class LinkedInImportRequest(BaseModel):
+    url: str
+
+
+@app.post("/api/import-linkedin")
+@limiter.limit("10/minute")
+async def import_linkedin(request: Request, body: LinkedInImportRequest):
+    nimble_key   = os.getenv("NIMBLE_API_KEY", "")
+    anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
+
+    url = body.url.strip()
+    if not url.startswith("http"):
+        raise HTTPException(status_code=400, detail="Please provide a valid URL starting with http:// or https://")
+
+    page_text = await asyncio.to_thread(nimble_extract, url, nimble_key)
+    if not page_text or len(page_text) < 100:
+        raise HTTPException(status_code=422, detail="Could not read that page — make sure the profile is public.")
+
+    client = anthropic_sdk.Anthropic(api_key=anthropic_key)
+    try:
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": f"{_IMPORT_PROMPT}\n\nDocument text:\n{page_text[:12000]}"}],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"AI service error: {str(e)}")
+
+    raw_text = response.content[0].text.strip()
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+
+    try:
+        parsed = json.loads(raw_text)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=422, detail="Could not extract profile data from that page.")
+
+    if "profile" in parsed and isinstance(parsed["profile"], dict):
+        return {"profile": parsed["profile"], "warnings": parsed.get("warnings", [])}
+    return {"profile": parsed, "warnings": []}

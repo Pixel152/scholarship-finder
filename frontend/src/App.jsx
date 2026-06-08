@@ -7,6 +7,7 @@ import TrackerView from './components/TrackerView'
 import DashboardLayout from './components/DashboardLayout'
 import SearchNotification from './components/SearchNotification'
 import ImportReviewPage from './components/ImportReviewPage'
+import StoryPage from './components/StoryPage'
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 const K = {
@@ -248,13 +249,13 @@ export default function App() {
 
   const handleEdit = (data) => { persistProfile(data); setView('profile') }
 
-  const handleImportReview = ({ profile, warnings, currentData }) => {
+  const handleImportReview = ({ profile, warnings, currentData, from }) => {
     const importedKeys = Object.keys(profile).filter(k => {
       const v = profile[k]
       if (Array.isArray(v)) return v.length > 0
       return v !== null && v !== undefined && v !== '' && v !== false
     })
-    setImportState({ profile, warnings, importedKeys, currentData })
+    setImportState({ profile, warnings, importedKeys, currentData: currentData || profile, from: from || 'edit' })
     setView('import-review')
   }
 
@@ -280,7 +281,7 @@ export default function App() {
     }
   }
 
-  const dashboardViews = ['profile', 'results', 'tracker']
+  const dashboardViews = ['profile', 'results', 'tracker', 'story']
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -305,9 +306,8 @@ export default function App() {
           initialProfile={importState.profile}
           currentProfile={importState.currentData || profile}
           importedKeys={importState.importedKeys}
-          warnings={importState.warnings}
           onSave={handleImportSave}
-          onCancel={() => setView('edit')}
+          onCancel={() => setView(importState.from || 'edit')}
         />
       )}
 
@@ -346,6 +346,13 @@ export default function App() {
               trackerIds={new Set(trackerItems.map(t => t.id))}
               onSave={saveTrackerItem}
               onUnsave={unsaveTrackerItem}
+            />
+          )}
+          {view === 'story' && (
+            <StoryPage
+              profile={profile}
+              onSave={(data) => persistProfile(data)}
+              onImportReview={handleImportReview}
             />
           )}
         </DashboardLayout>

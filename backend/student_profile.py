@@ -40,6 +40,11 @@ class StudentProfile:
     career_goal: str = ""
     already_applied: List[str] = field(default_factory=list)
 
+    extra_context: str = ""
+    linkedin_url: str = ""
+    website_url: str = ""
+    portfolio_url: str = ""
+
     def to_prompt_text(self) -> str:
         lines = [
             f"Name: {self.name}",
@@ -101,4 +106,8 @@ class StudentProfile:
 
         if self.already_applied:
             lines.append(f"\nALREADY APPLIED — exclude from results: {', '.join(self.already_applied)}")
+
+        if self.extra_context:
+            lines.append(f"\nADDITIONAL BACKGROUND (use this to find more targeted scholarships):\n{self.extra_context}")
+
         return "\n".join(lines)

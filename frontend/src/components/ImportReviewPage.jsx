@@ -125,7 +125,7 @@ function FullWidth({ children }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function ImportReviewPage({ initialProfile, currentProfile, importedKeys, warnings, onSave, onCancel }) {
+export default function ImportReviewPage({ initialProfile, currentProfile, importedKeys, onSave, onCancel }) {
   // Merge: imported fields on top of current, but start editable
   const [data, setData] = useState(() => ({
     ...currentProfile,
@@ -174,18 +174,6 @@ export default function ImportReviewPage({ initialProfile, currentProfile, impor
       </header>
 
       <div className="max-w-2xl mx-auto px-4 md:px-6 py-6">
-        {/* Warnings */}
-        {warnings.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 space-y-1.5">
-            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
-              <span>⚠️</span> Double-check these — AI wasn't fully certain
-            </p>
-            {warnings.map((w, i) => (
-              <p key={i} className="text-xs text-amber-800 leading-relaxed">• {w}</p>
-            ))}
-          </div>
-        )}
-
         {/* Legend */}
         <div className="flex items-center gap-2 mb-6 text-xs text-gray-500">
           <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 font-semibold px-2.5 py-1 rounded-full">
