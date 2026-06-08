@@ -19,7 +19,7 @@ from slowapi.util import get_remote_address
 
 from agent import run_agent
 from auth import AuthError, init_db, signup, login, save_profile, get_profile, verify_token
-from nimble_client import nimble_extract
+from nimble_client import nimble_extract, nimble_extract_linkedin
 from student_profile import StudentProfile
 
 # Walk up from backend/ to find the .env (works locally and on Render)
@@ -298,16 +298,22 @@ class LinkedInImportRequest(BaseModel):
 @app.post("/api/import-linkedin")
 @limiter.limit("10/minute")
 async def import_linkedin(request: Request, body: LinkedInImportRequest):
-    nimble_key   = os.getenv("NIMBLE_API_KEY", "")
+    nimble_key    = os.getenv("NIMBLE_API_KEY", "")
     anthropic_key = os.getenv("ANTHROPIC_API_KEY", "")
 
     url = body.url.strip()
     if not url.startswith("http"):
         raise HTTPException(status_code=400, detail="Please provide a valid URL starting with http:// or https://")
 
-    page_text = await asyncio.to_thread(nimble_extract, url, nimble_key)
+    is_linkedin = "linkedin.com" in url
+    extractor   = nimble_extract_linkedin if is_linkedin else nimble_extract
+    page_text   = await asyncio.to_thread(extractor, url, nimble_key)
+
     if not page_text or len(page_text) < 100:
-        raise HTTPException(status_code=422, detail="Could not read that page — make sure the profile is public.")
+        raise HTTPException(
+            status_code=422,
+            detail="Could not read that page. For LinkedIn, make sure your profile visibility is set to Public (Settings → Public profile)."
+        )
 
     client = anthropic_sdk.Anthropic(api_key=anthropic_key)
     try:

@@ -64,6 +64,44 @@ def nimble_search(query: str, api_key: str, max_results: int = 10) -> list:
         return []
 
 
+def nimble_extract_linkedin(url: str, api_key: str) -> str:
+    """LinkedIn-specific extraction using Nimble's premium rendering with geo + real browser UA."""
+    try:
+        resp = requests.post(
+            NIMBLE_EXTRACT_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "url": url,
+                "render": True,
+                "driver": "vx8",
+                "country": "US",
+                "locale": "en-US",
+                "headers": {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                    "Accept-Language": "en-US,en;q=0.9",
+                },
+            },
+            timeout=90,
+        )
+        resp.raise_for_status()
+        data = resp.json().get("data", {})
+        raw = data.get("markdown") or data.get("text") or data.get("html", "")
+        if not raw:
+            return ""
+        text = _html_to_text(raw) if raw.lstrip().startswith("<") else raw
+        # LinkedIn login-wall detection
+        if any(phrase in text.lower() for phrase in ["join now", "sign in", "log in to see", "authwall"]):
+            return ""
+        return text
+    except Exception as e:
+        print(f"  [LinkedIn extract error] {e}")
+        return ""
+
+
 def nimble_extract(url: str, api_key: str) -> str:
     try:
         resp = requests.post(
