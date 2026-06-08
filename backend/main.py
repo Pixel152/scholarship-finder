@@ -351,15 +351,29 @@ async def import_linkedin(request: Request, body: LinkedInImportRequest):
     if not url.startswith("http"):
         raise HTTPException(status_code=400, detail="Please provide a valid URL starting with http:// or https://")
 
-    is_linkedin = "linkedin.com" in url
-    extractor   = nimble_extract_linkedin if is_linkedin else nimble_extract
-    page_text   = await asyncio.to_thread(extractor, url, nimble_key)
+    is_linkedin = "linkedin.com/in/" in url
 
-    if not page_text or len(page_text) < 100:
-        raise HTTPException(
-            status_code=422,
-            detail="Could not read that page. For LinkedIn, make sure your profile visibility is set to Public (Settings → Public profile)."
-        )
+    if is_linkedin:
+        # LinkedIn personal profiles are login-gated even for headless browsers.
+        # Use Nimble Search to get Google's indexed snapshot of the profile instead.
+        # Google indexes name, title, company, location, and bio snippet.
+        username = url.rstrip("/").split("/in/")[-1].split("/")[0]
+        queries = [
+            f'site:linkedin.com/in/{username}',
+            f'linkedin.com/in/{username}',
+        ]
+        snippets = []
+        for q in queries:
+            results = await asyncio.to_thread(nimble_search, q, nimble_key, 5)
+            for r in results:
+                parts = [r.get("title", ""), r.get("description", ""), r.get("url", "")]
+                snippets.append(" | ".join(p for p in parts if p))
+        page_text = "\n".join(snippets)
+    else:
+        page_text = await asyncio.to_thread(nimble_extract, url, nimble_key)
+
+    if not page_text or len(page_text) < 50:
+        raise HTTPException(status_code=422, detail="Could not find profile data for that URL.")
 
     client = anthropic_sdk.Anthropic(api_key=anthropic_key)
     try:
