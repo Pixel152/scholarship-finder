@@ -138,6 +138,9 @@ export default function ImportReviewPage({ initialProfile, currentProfile, impor
         const baseLower = base.map(v => v.toLowerCase())
         const newItems = imported.filter(v => !baseLower.includes(v.toLowerCase()))
         merged[key] = [...base, ...newItems]
+      } else if (key === 'extra_context') {
+        // Append to existing extra context, don't overwrite
+        merged[key] = [existing, imported].filter(Boolean).join('\n\n')
       } else {
         // Only fill if current value is empty/falsy
         const isEmpty = existing === null || existing === undefined || existing === '' || existing === false
@@ -333,6 +336,23 @@ export default function ImportReviewPage({ initialProfile, currentProfile, impor
             <TextInput value={data.parent_union} onChange={set('parent_union')} placeholder="Union name" />
           </FieldWrap>
         </Section>
+
+        {/* ── Extra background ── */}
+        {(data.extra_context || isNew('extra_context')) && (
+          <Section title="Extra background" icon="✍️">
+            <FullWidth>
+              <FieldWrap label="Background summary" isNew={isNew('extra_context')}>
+                <textarea
+                  value={data.extra_context || ''}
+                  onChange={e => set('extra_context')(e.target.value)}
+                  placeholder="Anything from the document that doesn't fit the fields above…"
+                  className="w-full text-sm text-gray-800 bg-white border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400 resize-none leading-relaxed min-h-[100px]"
+                />
+                <p className="text-xs text-gray-400 mt-1">This gets saved to My Story and used when searching for scholarships.</p>
+              </FieldWrap>
+            </FullWidth>
+          </Section>
+        )}
 
         {/* Bottom Save */}
         <div className="pt-2 pb-8">

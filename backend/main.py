@@ -91,6 +91,49 @@ def health():
     return {"status": "ok"}
 
 
+class DebugExtractRequest(BaseModel):
+    url: str
+
+
+@app.post("/api/debug-extract")
+async def debug_extract(request: Request, body: DebugExtractRequest):
+    """Returns the raw Nimble response for a URL — for debugging only."""
+    nimble_key = os.getenv("NIMBLE_API_KEY", "")
+    import requests as req_lib
+    try:
+        resp = await asyncio.to_thread(
+            req_lib.post,
+            "https://sdk.nimbleway.com/v1/extract",
+            headers={"Authorization": f"Bearer {nimble_key}", "Content-Type": "application/json"},
+            json={
+                "url": body.url.strip(),
+                "render": True,
+                "driver": "vx8",
+                "country": "US",
+                "locale": "en-US",
+                "headers": {
+                    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept-Language": "en-US,en;q=0.9",
+                },
+            },
+            timeout=50,
+        )
+        raw = resp.json()
+        # Return top-level keys + content length + first 2000 chars of each text field
+        def summarise(obj, depth=0):
+            if depth > 3: return str(obj)[:200]
+            if isinstance(obj, dict):
+                return {k: summarise(v, depth+1) for k, v in obj.items()}
+            if isinstance(obj, str):
+                return {"len": len(obj), "preview": obj[:2000]}
+            if isinstance(obj, list):
+                return [summarise(i, depth+1) for i in obj[:3]]
+            return obj
+        return {"status": resp.status_code, "body": summarise(raw)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.post("/api/search")
 def search_scholarships(body: ProfileRequest):
     profile = StudentProfile(**body.model_dump())
@@ -221,10 +264,13 @@ Return this exact structure:
   ]
 }
 
+  "extra_context": "A short narrative summary (2-5 sentences) of anything in the document that doesn't fit the structured fields above — ventures, research, personal story, work experience, unique background, etc. Leave empty string if nothing notable."
+}
+
 Rules:
 - Only include profile fields where you found CLEAR information. Omit fields not present.
-- The warnings array should flag: fields you inferred/guessed rather than read directly, ambiguous values, or anything the user should double-check.
-- If nothing is uncertain, return warnings as an empty array [].
+- extra_context should capture the human story, not repeat structured data.
+- warnings array: flag inferred/guessed values or anything to double-check. Empty array if nothing uncertain.
 - Return ONLY valid JSON."""
 
 
